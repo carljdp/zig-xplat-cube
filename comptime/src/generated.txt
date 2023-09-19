@@ -1,0 +1,13 @@
+//! NB ! This file is generated automatically at build/compile time //
+//! Any manual changes/edits made here will be overwritten, soon .. //
+
+const std = @import("std");
+const this = @This();
+
+const logLabel = "GENERATED";
+
+pub fn init() bool {
+    std.debug.print("[{s}] Hello, world!\n", .{logLabel});
+}
+
+const inited = this.init();

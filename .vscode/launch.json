@@ -1,0 +1,37 @@
+{
+  // DEBUG SETTINGS
+  // --------------
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(Windows) Launch",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/zig-out/bin/${workspaceFolderBasename}.exe",
+      "args": [],
+      "stopAtEntry": false,
+      "environment": [],
+      "console": "integratedTerminal",
+      "preLaunchTask": "(task) zig build", // defined in .vscode/tasks.json
+      // "windows": {
+      //   "MIMode": "gdb",
+      //   "miDebuggerPath": "C:\\MinGw\\bin\\gdb.exe"
+      // }
+    }
+    // {
+    //   "name": "(lldb) Debug",
+    //   "type": "lldb",
+    //   "request": "launch",
+    //   "preLaunchTask": "(task) zig build", // defined in .vscode/tasks.json
+    //   "cwd": "c:\\Users\\carljdp\\Projects\\zig-xplat-cube",
+    //   "program": "c:\\Users\\carljdp\\Projects\\zig-xplat-cube\\zig-out\\bin\\zig-xplat-cube.exe",
+    //   // "sourceMap": {
+    //   //     "./zig-out/bin": "${workspaceFolder}/src"
+    //   // }
+    //   // "sourceMap": {
+    //   //   "c:\\Users\\carljdp\\Projects\\zig-xplat-cube\\zig-out\\bin": "c:\\Users\\carljdp\\Projects\\zig-xplat-cube\\src",
+    //   // }
+    // },
+  ]
+}

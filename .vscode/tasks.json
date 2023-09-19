@@ -1,0 +1,19 @@
+{
+    // BUILD & TEST TASKS
+    // ------------------
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "(task) zig build",
+            "type": "shell",
+            "command": "zig build",
+            "windows": {
+                "command": "zig build"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "dedicated",
+            },
+        }
+    ]
+}

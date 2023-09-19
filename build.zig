@@ -1,70 +1,175 @@
 const std = @import("std");
 
-// Although this function looks imperative, note that its job is to
-// declaratively construct a build graph that will be executed by an external
-// runner.
-pub fn build(b: *std.Build) void {
-    // Standard target options allows the person running `zig build` to choose
-    // what target to build for. Here we do not override the defaults, which
-    // means any target is allowed, and the default is native. Other options
-    // for restricting supported target set are available.
-    const target = b.standardTargetOptions(.{});
+// project settings / manifest
+const Project = @import("project.zig").Project;
 
-    // Standard optimization options allow the person running `zig build` to select
-    // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
-    // set a preferred release mode, allowing the user to decide how to optimize.
-    const optimize = b.standardOptimizeOption(.{});
+// debug helpers
+const is_test = @import("builtin").is_test;
+const Name = @import("src/debug_helpers.zig").DotNotation;
+const CFS = @import("src/build_helpers.zig").CFS;
 
-    const exe = b.addExecutable(.{
-        .name = "zig-xplat-cube",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
+//
+//=============================================================================
+//
 
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
-    b.installArtifact(exe);
+/// `build.zig` entry point
+pub fn build(b: *std.Build) !void {
+    // Log out this function name at entry and exit` ` ` ` ` `
+    const memo = comptime Name.ofFunction(build).full();
+    if (!is_test) std.debug.print("[{s}] ..\n", .{memo});
+    defer if (!is_test) std.debug.print("[{s}] done.\n", .{memo});
+    // ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
 
-    // This *creates* a Run step in the build graph, to be executed when another
-    // step is evaluated that depends on it. The next line below will establish
-    // such a dependency.
-    const run_cmd = b.addRunArtifact(exe);
-
-    // By making the run step depend on the install step, it will be run from the
-    // installation directory rather than directly from within the cache directory.
-    // This is not necessary, however, if the application depends on other installed
-    // files, this ensures they will be present and in the expected location.
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    // This allows the user to pass arguments to the application in the build
-    // command itself, like this: `zig build run -- arg1 arg2 etc`
-    if (b.args) |args| {
-        run_cmd.addArgs(args);
+    var test_buildHelpers = false;
+    if (b.args) |_args| {
+        for (_args) |_arg| {
+            if (std.mem.startsWith(u8, _arg, "--test=build_helpers")) {
+                // const value = _arg["-DmyFlag=".len..];
+                // _ = value;
+                // // Use 'value'
+                test_buildHelpers = true;
+                break;
+            }
+        }
     }
 
-    // This creates a build step. It will be visible in the `zig build --help` menu,
-    // and can be selected like this: `zig build run`
-    // This will evaluate the `run` step rather than the default, which is "install".
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
-
-    // Creates a step for unit testing. This only builds the test executable
-    // but does not run it.
-    const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
-        .target = target,
-        .optimize = optimize,
-    });
-
-    const run_unit_tests = b.addRunArtifact(unit_tests);
-
-    // Similar to creating the run step earlier, this exposes a `test` step to
-    // the `zig build --help` menu, providing a way for the user to request
-    // running the unit tests.
-    const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_unit_tests.step);
+    // switch used, for when you add more arg functionality above
+    return switch (test_buildHelpers) {
+        true => try go.test_build_helpers(b),
+        else => try go.build_project(b),
+    };
 }
+
+//-----------------------------------------------------------------------------
+
+// Optimize options
+const optimizeOptions = struct {
+    const default = .{
+        // .default_target = .{ .os_tag = .windows, .cpu_arch = .x86_64, .abi = .msvc },
+        // // ... other options
+    };
+    const debug = .{
+        .preferred_optimize_mode = std.builtin.OptimizeMode.Debug,
+    };
+};
+
+// target options
+// const target = b.standardTargetOptions(.{
+//     .default_target = .{ .os_tag = .windows, .cpu_arch = .x86_64, .abi = .msvc },
+//     // ... other options
+// });
+
+//
+//=============================================================================
+//
+
+const go = struct {
+    /// builds the project
+    fn build_project(b: *std.Build) !void {
+        // Log out this function name at entry and exit` ` ` ` ` `
+        const memo = comptime Name.ofFunction(build_project).full();
+        if (!is_test) std.debug.print("[{s}] ..\n", .{memo});
+        defer if (!is_test) std.debug.print("[{s}] done.\n", .{memo});
+        // ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
+
+        const _targetOptions = b.standardTargetOptions(.{});
+        const _optimizeOptions = b.standardOptimizeOption(optimizeOptions.default);
+        _ = _optimizeOptions;
+        const _optimizeOptionsDebug = b.standardOptimizeOption(optimizeOptions.debug);
+
+        //-----------------------------------------------------------------------------
+        // [Compile] executable for install
+
+        const compileExecutable = b.addExecutable(.{
+            .name = Project.name,
+            .root_source_file = .{ .path = Project.DirectoryStructure.Source.root ++ "/" ++ Project.FileNames.mainEntrypoint },
+            .target = _targetOptions,
+            .optimize = _optimizeOptionsDebug,
+            .link_libc = true,
+            .main_pkg_path = .{ .cwd_relative = b.pathFromRoot(".") }, // saw this in bun repo, not sure if it's helpful ?
+        });
+        Project.addExternalDependenciesTo(&compileExecutable);
+
+        //-----------------------------------------------------------------------------
+        // [PUB STEP] "install", triggered by `zig build [install]`
+
+        const commandTo_installExecutable = b.addInstallArtifact(compileExecutable, .{});
+
+        const publicStep_install = b.getInstallStep();
+        publicStep_install.dependOn(&commandTo_installExecutable.step);
+
+        //-----------------------------------------------------------------------------
+        // [cmd] run executable (with optional args) compiled for install
+
+        const commandTo_runExecutable = b.addRunArtifact(compileExecutable);
+        if (b.args) |args| commandTo_runExecutable.addArgs(args);
+        commandTo_runExecutable.step.dependOn(&commandTo_installExecutable.step);
+
+        //-----------------------------------------------------------------------------
+        // [PUB STEP] "run", triggered by `zig build run`
+
+        const publicStep_run = b.step("run", "Build & Run");
+        publicStep_run.dependOn(&commandTo_runExecutable.step);
+
+        //-----------------------------------------------------------------------------
+        // [Compile] executable for tests
+
+        const compileTestable = b.addTest(.{
+            .root_source_file = .{ .path = Project.DirectoryStructure.Source.root ++ "/" ++ Project.FileNames.mainEntrypoint },
+            .target = _targetOptions,
+            .optimize = _optimizeOptionsDebug,
+            .link_libc = true,
+        });
+        Project.addExternalDependenciesTo(&compileTestable);
+
+        //-----------------------------------------------------------------------------
+        // [cmd] run executable compiled for tests
+
+        const commandTo_runTastable = b.addRunArtifact(compileTestable);
+
+        //-----------------------------------------------------------------------------
+        // [PUB STEP] "test", triggered by `zig build test`
+
+        const publicStep_test = b.step("test", "Build & Test");
+        publicStep_test.dependOn(&commandTo_runTastable.step);
+
+        //-----------------------------------------------------------------------------
+        // When you run `zig build -l` also print this:
+
+        _ = b.step("\nOther:", "");
+        _ = b.step("-- --test=build_helpers", "Test build_helpers.zig");
+        const publicStep__ = b.step("_", "");
+        publicStep__.dependOn(&commandTo_runExecutable.step);
+        _ = b.step(" \\_(ツ)_/¯", "");
+
+        // //-----------------------------------------------------------------------------
+        // // [PUB STEP] "watchTxt", triggered by `zig build watchTxt`
+        // //  - invalidate the step when the text file changes
+
+        // // Create a custom step to watch the text file
+        // const watchTxtStep = B.step("watchTxt", "Watch text file for changes");
+        // watchTxtStep.addFile("somefile.txt"); // NOT A FUNCTION
+        // watchTxtStep.dependOn(&compileExecutable.step);
+    }
+
+    /// tests `build_helpers` (which themselves depend on a `*std.Build`)
+    fn test_build_helpers(B: *std.Build) !void {
+        // Log out this function name at entry and exit` ` ` ` ` `
+        const memo = comptime Name.ofFunction(test_build_helpers).full();
+        if (!is_test) std.debug.print("[{s}] ..\n", .{memo});
+        defer if (!is_test) std.debug.print("[{s}] done.\n", .{memo});
+        // ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
+
+        var cfs = CFS.onStack();
+        _ = try cfs.init(&B.allocator);
+        defer cfs.deinit();
+
+        const fileName = "generated";
+        try cfs.readFileToInternalBuffer(Project.DirectoryStructure.Comptime.source ++ "/" ++ fileName ++ ".txt", null);
+
+        try cfs.writeFile(
+            Project.DirectoryStructure.Comptime.cache ++ "/" ++ fileName ++ ".zig",
+            try cfs.getBufferAsIs(),
+        );
+    }
+};

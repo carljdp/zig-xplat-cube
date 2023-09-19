@@ -1,24 +1,74 @@
+//=============================================================================
+// generics
 const std = @import("std");
+const c = @import("c.zig");
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// aliases
+const Type = std.builtin.Type;
+const Allocator = std.mem.Allocator;
+const memEql = std.mem.eql;
+const metaEql = std.meta.eql;
+const expect = std.testing.expect;
+const print = std.debug.print;
+const panic = std.debug.panic;
+// const compilePrint = @compileLog("COMPTIME! AGAIN! WHY??");
+// const compilePanic = @compileError("COMPTIME! AGAIN! WHY??");
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Flags
+const isTest = @import("builtin").is_test;
+const is_debug = false;
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// just for easier dev time code navigation
+const _std_builtin_ = @import("std").builtin;
+const _std_meta____ = @import("std").meta;
+
+//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Own file imports
+
+/// Math3D (imported)
+const math3d = @import("math3d.zig");
+/// Debug Utils (imported)
+const Du = @import("debug_helpers.zig");
+/// Graph Data Structure (imported)
+const Graph = @import("data_structure.zig").Graph;
+/// Non-Idiomatic Zig (imported)
+const NI = @import("NI.zig");
+/// TTypes etc. (imported)
+const TT = @import("TT.zig").TT;
+const XT = @import("TT.zig").ExplicitTypes;
+/// ChatGPT plan (imported)
+const OCDP = @import("OCDP.zig").OCDP;
+/// General Purpose Allocator (imported)
+const GPA = @import("memory_allocations.zig").GPA;
+
+const main2 = @import("glfw_related.zig").main2;
+
+//=============================================================================
+// MAIN()
+//-----------------------------------------------------------------------------
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    // @breakpoint();
+    //
+    // try OCDP.shaderCompilation();
+    // _ = try main2();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    _ = main2() catch |err| {
+        print(" \n main2() \nOCDP._1_shaderCompilation() failed:\n {!}", .{err});
+    };
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
-
-    try bw.flush(); // don't forget to flush!
+    // const ctx = "world";
+    // std.debug.print(" \n Hello, {s}!\n", .{ctx});
 }
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+test "OCDP._1_shaderCompilation" {
+    // OCDP._1_shaderCompilation() catch |err| {
+    //     print(" \nOCDP._1_shaderCompilation() failed:\n {}", .{err});
+    // };
+    _ = main2() catch |err| {
+        print(" \n main2() \nOCDP._1_shaderCompilation() failed:\n {!}", .{err});
+    };
 }
