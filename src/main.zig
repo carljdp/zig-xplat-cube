@@ -56,19 +56,20 @@ pub fn main() !void {
     // try OCDP.shaderCompilation();
     // _ = try main2();
 
-    _ = main2() catch |err| {
-        print(" \n main2() \nOCDP._1_shaderCompilation() failed:\n {!}", .{err});
-    };
+    // _ = main2() catch |err| {
+    //     print("\n->main2() failed:\n {!}", .{err});
+    // };
+    _ = try main2();
 
     // const ctx = "world";
     // std.debug.print(" \n Hello, {s}!\n", .{ctx});
 }
 
-test "OCDP._1_shaderCompilation" {
+test "main()" {
     // OCDP._1_shaderCompilation() catch |err| {
     //     print(" \nOCDP._1_shaderCompilation() failed:\n {}", .{err});
     // };
     _ = main2() catch |err| {
-        print(" \n main2() \nOCDP._1_shaderCompilation() failed:\n {!}", .{err});
+        print("\n->main2() failed:\n {!}", .{err});
     };
 }
