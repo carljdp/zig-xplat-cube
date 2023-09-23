@@ -2,6 +2,8 @@
 const std = @import("std");
 const c = @import("c.zig");
 
+const GL = @import("cImportRemap.zig").GL;
+
 // types debugging
 const TT = @import("TT.zig").TT;
 
@@ -44,8 +46,8 @@ const Type = std.builtin.Type;
 //------------------------------------------------------------------------------
 
 pub const MatricesSuppliedIn = struct {
-    pub const rowMajorOrder: c.GLboolean = c.GL_TRUE;
-    pub const colMajorOrder: c.GLboolean = c.GL_FALSE;
+    pub const rowMajorOrder: GL._boolean = GL.TRUE;
+    pub const colMajorOrder: GL._boolean = GL.FALSE;
 };
 
 pub const _transform = [4][4]f32{
@@ -59,7 +61,7 @@ pub const _transform = [4][4]f32{
 
 pub const BasicShape = struct {
     vertices: []const f32,
-    indices: []const c.GLuint,
+    indices: []const GL._uint,
 };
 
 pub const cube = BasicShape{
@@ -114,7 +116,7 @@ pub const cube = BasicShape{
     },
 
     // Example indices for a cube
-    .indices = &[_]c.GLuint{
+    .indices = &[_]GL._uint{
         0, 1, 2, 2, 3, 0, // Front face
         4, 5, 6, 6, 7, 4, // Back face
         8, 9, 10, 10, 11, 8, // Top face
@@ -133,7 +135,7 @@ pub const triangle = BasicShape{
     },
 
     // Example indices for a cube
-    .indices = &[_]c.GLuint{
+    .indices = &[_]GL._uint{
         0, 1, 2, // Front face
     },
 };
@@ -153,7 +155,7 @@ pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
         };
 
         const Object = struct {
-            const Name = c.GLuint;
+            const Name = GL._uint;
 
             const Shaders = struct {};
             const VertexArray = struct {};
@@ -174,20 +176,20 @@ pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
             // Renderbuffer,
             // Framebuffer,
 
-            // c.GL_OBJECT_TYPE
-            // c.GL_SHADER_TYPE
-            // c.GL_UNIFORM_TYPE
-            // c.GL_VERTEX_ATTRIB_ARRAY_TYPE
-            // c.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
+            // GL_.OBJECT_TYPE
+            // GL_.SHADER_TYPE
+            // GL_.UNIFORM_TYPE
+            // GL_.VERTEX_ATTRIB_ARRAY_TYPE
+            // GL_.FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
         };
 
         // as is  / unsorted: `````````````````````````````````````````````
 
         // generic / internal types
-        const ObjectId = c.GLuint;
+        const ObjectId = GL._uint;
 
         // shader related types
-        pub const ShaderTypeTag = enum(c.GLenum) { Vertex = c.GL_VERTEX_SHADER, Fragment = c.GL_FRAGMENT_SHADER };
+        pub const ShaderTypeTag = enum(GL._enum) { Vertex = GL.VERTEX_SHADER, Fragment = GL.FRAGMENT_SHADER };
         pub const ShaderId = ObjectId;
         pub const ProgramId = ObjectId;
 
@@ -201,7 +203,7 @@ pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
     };
 }
 
-pub const Gl = OpenGlTypes(4, 1);
+pub const MyGl = OpenGlTypes(4, 1);
 
 /// OpenGL Shader related helper functions / abstractions
 pub const ShaderUtils = struct {
@@ -212,31 +214,31 @@ pub const ShaderUtils = struct {
         //
 
         /// Error if shader compilation failed.
-        pub fn shaderCompiled(shader: Gl.ShaderId) !void {
+        pub fn shaderCompiled(shader: MyGl.ShaderId) !void {
             var status: i32 = undefined;
-            c.glGetShaderiv(shader, c.GL_COMPILE_STATUS, &status);
-            if (status == c.GL_TRUE) return void{};
+            GL.getShaderiv(shader, GL.COMPILE_STATUS, &status);
+            if (status == GL.TRUE) return void{};
 
             // ..else log it, and return an error
             const maxLength = 512;
-            var string: [maxLength]c.GLchar = undefined;
-            var stringLength: c.GLsizei = undefined;
-            c.glGetShaderInfoLog(shader, maxLength, &stringLength, &string);
+            var string: [maxLength]GL._char = undefined;
+            var stringLength: GL._sizei = undefined;
+            GL.getShaderInfoLog(shader, maxLength, &stringLength, &string);
             std.debug.print("Failed to compile shader. GL Info Log:\n{s}\n", .{string[0..string.len]});
             return error.GL_ShaderCompile_Failed;
         }
 
         /// Error if shader program linking failed.
-        pub fn programLinked(program: Gl.ProgramId) !void {
-            var status: c.GLint = undefined;
-            c.glGetProgramiv(program, c.GL_LINK_STATUS, &status);
-            if (status == c.GL_TRUE) return void{};
+        pub fn programLinked(program: MyGl.ProgramId) !void {
+            var status: GL._int = undefined;
+            GL.getProgramiv(program, GL.LINK_STATUS, &status);
+            if (status == GL.TRUE) return void{};
 
             // ..else log it, and return an error
             const maxLength = 512;
-            var string: [maxLength]c.GLchar = undefined;
-            var stringLength: c.GLsizei = undefined;
-            c.glGetProgramInfoLog(program, maxLength, &stringLength, &string);
+            var string: [maxLength]GL._char = undefined;
+            var stringLength: GL._sizei = undefined;
+            GL.getProgramInfoLog(program, maxLength, &stringLength, &string);
             std.debug.print("Failed to link shader. GL Info Log:\n{s}\n", .{string[0..string.len]});
             return error.GL_ShaderProgramLink_Failed;
         }
@@ -251,8 +253,8 @@ pub const ShaderUtils = struct {
             // - see: https://docs.gl/gl4/glGetError
 
             // fetch and clear queued error
-            const status: c.GLenum = c.glGetError();
-            if (status == c.GL_NO_ERROR) return void{};
+            const status: GL._enum = GL.getError();
+            if (status == GL.NO_ERROR) return void{};
             // If result == GL_NO_ERROR:
             // - there has been no detectable error since the last call to glGetError,
             // - or since the GL was initialized.
@@ -261,11 +263,11 @@ pub const ShaderUtils = struct {
             // TODO: see todo above
 
             const errString = switch (status) {
-                c.GL_INVALID_ENUM => "GL_INVALID_ENUM",
-                c.GL_INVALID_VALUE => "GL_INVALID_VALUE",
-                c.GL_INVALID_OPERATION => "GL_INVALID_OPERATION",
-                c.GL_INVALID_FRAMEBUFFER_OPERATION => "GL_INVALID_FRAMEBUFFER_OPERATION",
-                c.GL_OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
+                GL.INVALID_ENUM => "GL_INVALID_ENUM",
+                GL.INVALID_VALUE => "GL_INVALID_VALUE",
+                GL.INVALID_OPERATION => "GL_INVALID_OPERATION",
+                GL.INVALID_FRAMEBUFFER_OPERATION => "GL_INVALID_FRAMEBUFFER_OPERATION",
+                GL.OUT_OF_MEMORY => "GL_OUT_OF_MEMORY",
                 else => "Unknown",
             };
 
@@ -279,19 +281,19 @@ pub const ShaderUtils = struct {
     /// Does not check compilation status
     /// `source` is plain zig slice (no null termination required for this function)
     /// Caller responsiple to check for successful compilation
-    pub fn compile(shaderType: Gl.ShaderTypeTag, source: []const u8) !Gl.ShaderId {
+    pub fn compile(shaderType: MyGl.ShaderTypeTag, source: []const u8) !MyGl.ShaderId {
         // If we know the length of the source string (like with a zig slice),
         // then it doesn't need to be in null terminated c-style
 
         // safe-cast usize of source.len to GLint
-        var validLength: c.GLint = undefined;
-        if (source.len > std.math.maxInt(c.GLint)) {
+        var validLength: GL._int = undefined;
+        if (source.len > std.math.maxInt(GL._int)) {
             std.debug.print("source.len too large", .{});
             return error.GL_compileShader_SourceTooLong;
         } else validLength = @intCast(source.len);
 
         // create gl shader, returns Id (ref) of object, 0 if error
-        const shaderId: Gl.ShaderId = c.glCreateShader(@as(c.GLuint, @intFromEnum(shaderType)));
+        const shaderId: MyGl.ShaderId = GL.createShader(@as(GL._uint, @intFromEnum(shaderType)));
         if (shaderId == 0) {
             std.debug.print("Failed to create {s} shader object.", .{@tagName(shaderType)});
             return error.GL_compileShader_CreateShaderFailed;
@@ -299,12 +301,12 @@ pub const ShaderUtils = struct {
 
         // set shader source on shader object
         const arraySize = 1;
-        const arrayOfStrings = [arraySize][*c]const c.GLchar{source.ptr};
-        const arrayOfLengths = [arraySize]c.GLint{validLength};
-        c.glShaderSource(shaderId, arraySize, &arrayOfStrings, &arrayOfLengths);
+        const arrayOfStrings = [arraySize][*c]const GL._char{source.ptr};
+        const arrayOfLengths = [arraySize]GL._int{validLength};
+        GL.shaderSource(shaderId, arraySize, &arrayOfStrings, &arrayOfLengths);
 
         // compile shader source
-        c.glCompileShader(shaderId);
+        GL.compileShader(shaderId);
 
         // return without checking if compilation was successful
         return shaderId;
@@ -494,7 +496,7 @@ test "cast *[1][*]const u8 to [*]const ?[*]const u8" {
 pub const OCDP = struct {
     //
 
-    // pub fn _2_UniformsAndAttributesSetup(shaderProgramId: Gl.ProgramId, shape: *const BasicShape) !c.GLuint {
+    // pub fn _2_UniformsAndAttributesSetup(shaderProgramId: Gl.ProgramId, shape: *const BasicShape) !GL.Tuint {
     //     _ = shaderProgramId;
 
     // Define and enable the attributes (e.g., vertex positions).
@@ -548,11 +550,11 @@ pub const OCDP = struct {
         // Specify vertex attributes and how data is stored in the VBO.
 
         // # TODO: Move 'unbind's to next step
-        // c.glBindBuffer(c.GL_ARRAY_BUFFER, 0);
+        // GL_.bindBuffer(GL_.ARRAY_BUFFER, 0);
         // try ShaderUtils.assert.noGlError("UnbindBuffer");
 
         // # TODO: Move 'unbind's to next step
-        // c.glBindVertexArray(0);
+        // GL_.bindVertexArray(0);
         // try ShaderUtils.assert.noGlError("UnbindVertexArray");
 
         try ShaderUtils.assert.noGlError("3-end");
@@ -561,35 +563,33 @@ pub const OCDP = struct {
         return void{};
     }
 
-    pub fn _4_CubeGeometrySetup_wireframe(vertexArrayObject: c.GLuint, shape: *const BasicShape) !void {
-        _ = shape;
-        _ = vertexArrayObject;
+    pub fn _4_CubeGeometrySetup_wireframe(vertexArrayObject: GL._uint) !void {
 
         // Define vertices for a cube.
         // Set drawing mode to wireframe (GL_LINE_STRIP) vs. filled (GL_TRIANGLES|GL_FILL) vs. points (GL_POINTS) etc.
 
         // Change polygon mode to wireframe
-        // c.glPolygonMode(c.GL_FRONT_AND_BACK, c.GL_LINE);
-        // try ShaderUtils.assert.noGlError("PolygonMode");
+        GL.polygonMode(GL.FRONT_AND_BACK, GL.LINE);
+        try ShaderUtils.assert.noGlError("PolygonMode");
 
         // Bind your VAO (Vertex Array Object)
-        // c.glBindVertexArray(vertexArrayObject);
-        // try ShaderUtils.assert.noGlError("BindVertexArray");
+        GL.bindVertexArray(vertexArrayObject);
+        try ShaderUtils.assert.noGlError("BindVertexArray");
 
         // Draw the cube using GL_TRIANGLES and your element buffer
-        // const numberOfIndices: c.GLsizei = @as(c.GLsizei, @intCast(cube.indices.len)); // Replace with your actual count
-        // c.glDrawElements(c.GL_TRIANGLES, numberOfIndices, c.GL_UNSIGNED_INT, null);
-        // try ShaderUtils.assert.noGlError("DrawElements"); // https://docs.gl/gl4/glDrawElements
+        const numberOfIndices: GL._sizei = @as(GL._sizei, @intCast(cube.indices.len)); // Replace with your actual count
+        GL.drawElements(GL.TRIANGLES, numberOfIndices, GL.UNSIGNED_INT, null);
+        try ShaderUtils.assert.noGlError("DrawElements"); // https://docs.gl/gl4/glDrawElements
 
         // Unbind your VAO
-        // c.glBindVertexArray(0);
-        // try ShaderUtils.assert.noGlError("UnbindVertexArray");
+        GL.bindVertexArray(0);
+        try ShaderUtils.assert.noGlError("UnbindVertexArray");
 
         // # TODO: unbind the other thing? (VBO?)
 
         // Revert polygon mode back to fill if you wish to draw other objects normally
-        // c.glPolygonMode(c.GL_FRONT_AND_BACK, c.GL_FILL);
-        // try ShaderUtils.assert.noGlError("PolygonMode");
+        GL.polygonMode(GL.FRONT_AND_BACK, GL.FILL);
+        try ShaderUtils.assert.noGlError("PolygonMode");
 
         // TODO - return the stuff that might be needed in the next step?
         return void{};

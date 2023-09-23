@@ -8,10 +8,11 @@ const print = std.debug.print;
 const panic = std.debug.panic;
 
 /// ChatGPT 'plan' (imported)
+const GL = @import("cImportRemap.zig").GL;
 const _OCDP_ = @import("OCDP.zig");
 const OCDP2 = @import("OCDP2.zig").OCDP2;
 const OCDP = _OCDP_.OCDP;
-const ShaderProgramId = _OCDP_.Gl.ProgramId;
+const ShaderProgramId = _OCDP_.MyGl.ProgramId;
 const BasicShape = _OCDP_.BasicShape;
 var cube: BasicShape = _OCDP_.cube;
 var triangle: BasicShape = _OCDP_.triangle;
@@ -68,14 +69,14 @@ pub fn main2() !void {
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // get version info
-    const renderer = c.glGetString(c.GL_RENDERER); // get renderer string
-    const version = c.glGetString(c.GL_VERSION); // version as a string
+    const renderer = GL.getString(GL.RENDERER); // get renderer string
+    const version = GL.getString(GL.VERSION); // version as a string
     std.debug.print("[_GL_] Rederer: {s}\n", .{renderer});
     std.debug.print("[_GL_] Version: {s}\n", .{version});
 
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
-    c.glEnable(c.GL_DEPTH_TEST); // enable depth-testing
-    c.glDepthFunc(c.GL_LESS); // depth-testing interprets a smaller value as "closer"
+    GL.enable(GL.DEPTH_TEST); // enable depth-testing
+    GL.depthFunc(GL.LESS); // depth-testing interprets a smaller value as "closer"
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -113,7 +114,7 @@ pub fn main2() !void {
     // var height: c_int = undefined;
     // var ratio: c.float_t =undefined;
 
-    while (c.glfwWindowShouldClose(window) == c.GL_FALSE) {
+    while (c.glfwWindowShouldClose(window) == GL.FALSE) {
         // c.glfwGetFramebufferSize(windowRef, &width, &height);
         // ratio = @as(c.float_t, @floatFromInt(width)) / @as(c.float_t, @floatFromInt(height));
 
@@ -121,11 +122,11 @@ pub fn main2() !void {
         // c.glfwPollEvents();
 
         // wipe the drawing surface clear
-        c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT);
-        c.glUseProgram(ocdp2.glObjects.program.?);
-        c.glBindVertexArray(ocdp2.glObjects.vao.?);
+        GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
+        GL.useProgram(ocdp2.glObjects.program.?);
+        GL.bindVertexArray(ocdp2.glObjects.vao.?);
         // draw points 0-3 from the currently bound VAO with current in-use shader
-        c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
+        GL.drawArrays(GL.TRIANGLES, 0, 3);
         // update other events like input handling
         c.glfwPollEvents();
         // put the stuff we've been drawing onto the display

@@ -12,7 +12,8 @@ const FsUtils = @import("build_helpers.zig").CFS;
 
 //=============================================================================
 // DEPENDENCIES
-const Gl = @import("OCDP.zig").Gl;
+const GL = @import("cImportRemap.zig").GL;
+const MyGl = @import("OCDP.zig").MyGl;
 const ShaderUtils = @import("OCDP.zig").ShaderUtils;
 const BasicShape = @import("OCDP.zig").BasicShape;
 const MatricesSuppliedIn = @import("OCDP.zig").MatricesSuppliedIn;
@@ -29,11 +30,11 @@ pub const OCDP2Options = struct {
 };
 
 pub const GlObjectStuff = struct {
-    vertexShader: ?c.GLuint = null,
-    fragmentShader: ?c.GLuint = null,
-    program: ?c.GLuint = null,
-    vao: ?c.GLuint = null,
-    vbo: ?c.GLuint = null,
+    vertexShader: ?GL._uint = null,
+    fragmentShader: ?GL._uint = null,
+    program: ?GL._uint = null,
+    vao: ?GL._uint = null,
+    vbo: ?GL._uint = null,
     shape: BasicShape = testShape,
 };
 
@@ -110,7 +111,7 @@ pub const OCDP2 = struct {
         // [vertex shader]
         try cfs.readFileToInternalBuffer("./src/shaders/shader.vert", 1024 * 1024);
         const vertexShaderSource = try cfs.getBufferAsIs();
-        const vertexShaderId = try ShaderUtils.compile(Gl.ShaderTypeTag.Vertex, vertexShaderSource);
+        const vertexShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Vertex, vertexShaderSource);
         try ShaderUtils.assert.shaderCompiled(vertexShaderId);
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -120,7 +121,7 @@ pub const OCDP2 = struct {
         // [fragment shader]
         try cfs.readFileToInternalBuffer("./src/shaders/shader.frag", 1024 * 1024);
         const fragmentShaderSource = try cfs.getBufferAsIs();
-        const fragmentShaderId = try ShaderUtils.compile(Gl.ShaderTypeTag.Fragment, fragmentShaderSource);
+        const fragmentShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Fragment, fragmentShaderSource);
         try ShaderUtils.assert.shaderCompiled(fragmentShaderId);
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -128,10 +129,10 @@ pub const OCDP2 = struct {
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // Link shaders into a program
-        const shaderProgramId: Gl.ProgramId = c.glCreateProgram();
-        c.glAttachShader(shaderProgramId, self.glObjects.vertexShader.?);
-        c.glAttachShader(shaderProgramId, self.glObjects.fragmentShader.?);
-        c.glLinkProgram(shaderProgramId);
+        const shaderProgramId: MyGl.ProgramId = GL.createProgram();
+        GL.attachShader(shaderProgramId, self.glObjects.vertexShader.?);
+        GL.attachShader(shaderProgramId, self.glObjects.fragmentShader.?);
+        GL.linkProgram(shaderProgramId);
         try ShaderUtils.assert.programLinked(shaderProgramId);
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -139,8 +140,8 @@ pub const OCDP2 = struct {
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // As shaders are now linked into the program, we no longer need them.
-        c.glDeleteShader(self.glObjects.vertexShader.?);
-        c.glDeleteShader(self.glObjects.fragmentShader.?);
+        GL.deleteShader(self.glObjects.vertexShader.?);
+        GL.deleteShader(self.glObjects.fragmentShader.?);
         try ShaderUtils.assert.noGlError("glDeleteShader");
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -151,11 +152,11 @@ pub const OCDP2 = struct {
         //=============================================================================
 
         // const nameArray = "transform";
-        const cStringArray = [1][*c]const c.GLchar{"model"};
-        const name: [*c]const c.GLchar = cStringArray[0];
+        const cStringArray = [1][*c]const GL._char{"model"};
+        const name: [*c]const GL._char = cStringArray[0];
 
-        const targetUniformVariableLocation: c.GLint = c.glGetUniformLocation(self.glObjects.program.?, name);
-        const targetUniformVariableNumberOfMatrices: c.GLsizei = 1;
+        const targetUniformVariableLocation: GL._int = GL.getUniformLocation(self.glObjects.program.?, name);
+        const targetUniformVariableNumberOfMatrices: GL._sizei = 1;
 
         try ShaderUtils.assert.noGlError("2_UniformLocation_get"); // https://docs.gl/gl4/glGetUniformLocation
 
@@ -163,10 +164,10 @@ pub const OCDP2 = struct {
             return error.InvalidUniformLocation;
         }
 
-        c.glUseProgram(self.glObjects.program.?);
+        GL.useProgram(self.glObjects.program.?);
         try ShaderUtils.assert.noGlError("2_UseProgram");
 
-        var transform_flat: [16]c.GLfloat = undefined;
+        var transform_flat: [16]GL._float = undefined;
         var idx: usize = 0;
         for (_transform) |row| {
             for (row) |cell| {
@@ -175,7 +176,7 @@ pub const OCDP2 = struct {
             }
         }
 
-        c.glUniformMatrix4fv(
+        GL.uniformMatrix4fv(
             targetUniformVariableLocation,
             targetUniformVariableNumberOfMatrices,
             MatricesSuppliedIn.colMajorOrder,
@@ -187,8 +188,8 @@ pub const OCDP2 = struct {
 
         // Vertex Buffer Object (VBO)
 
-        var vertexBuffer: c.GLuint = undefined;
-        c.glGenBuffers(1, &vertexBuffer);
+        var vertexBuffer: GL._uint = undefined;
+        GL.genBuffers(1, &vertexBuffer);
         try ShaderUtils.assert.noGlError("3_VBO_generate");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -196,22 +197,22 @@ pub const OCDP2 = struct {
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // Bind VBO
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, self.glObjects.vbo.?);
+        GL.bindBuffer(GL.ARRAY_BUFFER, self.glObjects.vbo.?);
         try ShaderUtils.assert.noGlError("3_VBO_bind");
         // set data
-        // c.glBufferData(c.GL_ARRAY_BUFFER, @as(c.GLsizeiptr, @sizeOf(f32) * @as(c_longlong, shape.vertices.*.len)), &shape.vertices, c.GL_STATIC_DRAW);
+        // GL.bufferData(GL.ARRAY_BUFFER, @as(GL.Tsizeiptr, @sizeOf(f32) * @as(c_longlong, shape.vertices.*.len)), &shape.vertices, GL.STATIC_DRAW);
 
         const maxVertexCount = @as(usize, @intCast(std.math.maxInt(c_longlong)));
         const verticesLengthOrPanic = if (testShape.vertices.len <= maxVertexCount) @as(c_longlong, @intCast(testShape.vertices.len)) else std.debug.panic("shape.vertices.len too large", .{});
         const verticesPtr: ?*const anyopaque = @ptrCast(&testShape.vertices);
-        c.glBufferData(c.GL_ARRAY_BUFFER, verticesLengthOrPanic, verticesPtr, c.GL_STATIC_DRAW);
+        GL.bufferData(GL.ARRAY_BUFFER, verticesLengthOrPanic, verticesPtr, GL.STATIC_DRAW);
         try ShaderUtils.assert.noGlError("3_VBO_data");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // Vertex Array Object (VAO)
 
-        var vertexArrayObject: c.GLuint = undefined;
-        c.glGenVertexArrays(1, &vertexArrayObject);
+        var vertexArrayObject: GL._uint = undefined;
+        GL.genVertexArrays(1, &vertexArrayObject);
         try ShaderUtils.assert.noGlError("3_VAO_generate");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -219,26 +220,26 @@ pub const OCDP2 = struct {
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // Bind VAO
-        c.glBindVertexArray(self.glObjects.vao.?);
+        GL.bindVertexArray(self.glObjects.vao.?);
         try ShaderUtils.assert.noGlError("3_VAO_bind");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        const indexOfVertexAttributeToEnable: c.GLuint = 0;
-        c.glEnableVertexAttribArray(indexOfVertexAttributeToEnable);
+        const indexOfVertexAttributeToEnable: GL._uint = 0;
+        GL.enableVertexAttribArray(indexOfVertexAttributeToEnable);
         try ShaderUtils.assert.noGlError("2_VertexAttribArray_enable"); // https://docs.gl/gl4/glEnableVertexAttribArray
 
-        const indexOfVertexAttributeToModify: c.GLuint = 0;
-        const numberOfComponentsPerVertexAttribute: c.GLint = 3;
-        const dataTypeOfEachComponent: c.GLenum = c.GL_FLOAT;
-        const normalizeFixedPointDataValues: c.GLboolean = c.GL_FALSE;
-        const byteOffsetBetweenConsecutiveVertexAttribute: c.GLsizei = 3 * @sizeOf(f32);
-        const byteOffsetToFirstGenericVertexAttribute: ?*const c.GLvoid = null;
+        const indexOfVertexAttributeToModify: GL._uint = 0;
+        const numberOfComponentsPerVertexAttribute: GL._int = 3;
+        const dataTypeOfEachComponent: GL._enum = GL.FLOAT;
+        const normalizeFixedPointDataValues: GL._boolean = GL.FALSE;
+        const byteOffsetBetweenConsecutiveVertexAttribute: GL._sizei = 3 * @sizeOf(f32);
+        const byteOffsetToFirstGenericVertexAttribute: ?*const GL._void = null;
 
         // didn't we already bind the buffer? why do we need to do it again?
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, self.glObjects.vbo.?);
+        GL.bindBuffer(GL.ARRAY_BUFFER, self.glObjects.vbo.?);
 
-        c.glVertexAttribPointer(
+        GL.vertexAttribPointer(
             indexOfVertexAttributeToModify,
             numberOfComponentsPerVertexAttribute,
             dataTypeOfEachComponent,
