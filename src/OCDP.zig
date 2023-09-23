@@ -43,13 +43,27 @@ const Type = std.builtin.Type;
 
 //------------------------------------------------------------------------------
 
-const matricesSuppliedIn = struct {
-    const rowMajorOrder: c.GLboolean = c.GL_TRUE;
-    const colMajorOrder: c.GLboolean = c.GL_FALSE;
+pub const MatricesSuppliedIn = struct {
+    pub const rowMajorOrder: c.GLboolean = c.GL_TRUE;
+    pub const colMajorOrder: c.GLboolean = c.GL_FALSE;
 };
 
-pub const Cube = struct {
-    vertices: [108]f32 = [_]f32{
+pub const _transform = [4][4]f32{
+    [4]f32{ 1.0, 0.0, 0.0, 0.0 },
+    [4]f32{ 0.0, 1.0, 0.0, 0.0 },
+    [4]f32{ 0.0, 0.0, 1.0, 0.0 },
+    [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+};
+
+//------------------------------------------------------------------------------
+
+pub const BasicShape = struct {
+    vertices: []const f32,
+    indices: []const c.GLuint,
+};
+
+pub const cube = BasicShape{
+    .vertices = &[_]f32{
         // Front face
         -1.0, -1.0, 1.0,
         1.0,  -1.0, 1.0,
@@ -100,7 +114,7 @@ pub const Cube = struct {
     },
 
     // Example indices for a cube
-    indices: [36]c.GLuint = [_]c.GLuint{
+    .indices = &[_]c.GLuint{
         0, 1, 2, 2, 3, 0, // Front face
         4, 5, 6, 6, 7, 4, // Back face
         8, 9, 10, 10, 11, 8, // Top face
@@ -110,30 +124,95 @@ pub const Cube = struct {
     },
 };
 
-const _transform = [4][4]f32{
-    [4]f32{ 1.0, 0.0, 0.0, 0.0 },
-    [4]f32{ 0.0, 1.0, 0.0, 0.0 },
-    [4]f32{ 0.0, 0.0, 1.0, 0.0 },
-    [4]f32{ 0.0, 0.0, 0.0, 1.0 },
+pub const triangle = BasicShape{
+    .vertices = &[_]f32{
+        // Front face
+        0.0,  0.5,  0.0,
+        0.5,  -0.5, 0.0,
+        -0.5, -0.5, 0.0,
+    },
+
+    // Example indices for a cube
+    .indices = &[_]c.GLuint{
+        0, 1, 2, // Front face
+    },
 };
 
 //------------------------------------------------------------------------------
 
-pub const ProgramId = c.GLuint;
-pub const ShaderId = c.GLuint;
-pub const ShaderType = enum(c.GLenum) {
-    Vertex = c.GL_VERTEX_SHADER,
-    Fragment = c.GL_FRAGMENT_SHADER,
-};
+pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
+    if ((majorVer != 4) or (minorVer != 1)) @compileError("Currently only OpenGL 4.1 is supported.");
 
+    return struct {
+        const this = @This();
+
+        const version = struct {
+            const major = majorVer;
+            const minor = minorVer;
+            const string = majorVer ++ "." ++ minorVer;
+        };
+
+        const Object = struct {
+            const Name = c.GLuint;
+
+            const Shaders = struct {};
+            const VertexArray = struct {};
+        };
+
+        pub const ObjectTag = enum {
+            // Texture,
+            BufferObject,
+            VertexArray,
+            Shader,
+            Program,
+            // ProgramPipeline,
+            // Query,
+            // ProgramPipeline,
+            // TransformFeedback,
+            // Sampler,
+            // Sync,
+            // Renderbuffer,
+            // Framebuffer,
+
+            // c.GL_OBJECT_TYPE
+            // c.GL_SHADER_TYPE
+            // c.GL_UNIFORM_TYPE
+            // c.GL_VERTEX_ATTRIB_ARRAY_TYPE
+            // c.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE
+        };
+
+        // as is  / unsorted: `````````````````````````````````````````````
+
+        // generic / internal types
+        const ObjectId = c.GLuint;
+
+        // shader related types
+        pub const ShaderTypeTag = enum(c.GLenum) { Vertex = c.GL_VERTEX_SHADER, Fragment = c.GL_FRAGMENT_SHADER };
+        pub const ShaderId = ObjectId;
+        pub const ProgramId = ObjectId;
+
+        // vertex array related types
+        pub const VertexArrayId = this.ObjectId;
+        pub const VertexArrays = [*c]this.VertexArrayId;
+
+        // buffer object related types
+        pub const BufferId = this.ObjectId;
+        pub const Buffers = [*c]this.BufferId;
+    };
+}
+
+pub const Gl = OpenGlTypes(4, 1);
+
+/// OpenGL Shader related helper functions / abstractions
 pub const ShaderUtils = struct {
     //
 
+    /// Assert success, or return error.
     pub const assert = struct {
         //
 
         /// Error if shader compilation failed.
-        pub fn shaderCompiled(shader: ShaderId) !void {
+        pub fn shaderCompiled(shader: Gl.ShaderId) !void {
             var status: i32 = undefined;
             c.glGetShaderiv(shader, c.GL_COMPILE_STATUS, &status);
             if (status == c.GL_TRUE) return void{};
@@ -148,7 +227,7 @@ pub const ShaderUtils = struct {
         }
 
         /// Error if shader program linking failed.
-        pub fn programLinked(program: ProgramId) !void {
+        pub fn programLinked(program: Gl.ProgramId) !void {
             var status: c.GLint = undefined;
             c.glGetProgramiv(program, c.GL_LINK_STATUS, &status);
             if (status == c.GL_TRUE) return void{};
@@ -200,7 +279,7 @@ pub const ShaderUtils = struct {
     /// Does not check compilation status
     /// `source` is plain zig slice (no null termination required for this function)
     /// Caller responsiple to check for successful compilation
-    pub fn compile(shaderType: ShaderType, source: []const u8) !ShaderId {
+    pub fn compile(shaderType: Gl.ShaderTypeTag, source: []const u8) !Gl.ShaderId {
         // If we know the length of the source string (like with a zig slice),
         // then it doesn't need to be in null terminated c-style
 
@@ -212,7 +291,7 @@ pub const ShaderUtils = struct {
         } else validLength = @intCast(source.len);
 
         // create gl shader, returns Id (ref) of object, 0 if error
-        const shaderId: ShaderId = c.glCreateShader(@as(c.GLuint, @intFromEnum(shaderType)));
+        const shaderId: Gl.ShaderId = c.glCreateShader(@as(c.GLuint, @intFromEnum(shaderType)));
         if (shaderId == 0) {
             std.debug.print("Failed to create {s} shader object.", .{@tagName(shaderType)});
             return error.GL_compileShader_CreateShaderFailed;
@@ -234,6 +313,8 @@ pub const ShaderUtils = struct {
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
+
+// EXPERIMENTAL TYPE
 
 const Matrix = struct {
     //
@@ -393,12 +474,10 @@ test "Manual String Literal" {
     std.debug.print("manual: {any}\n", .{@TypeOf(str1cc)});
 }
 
-const expect = std.testing.expect;
-const mem = std.mem;
 test "cast *[1][*]const u8 to [*]const ?[*]const u8" {
     const window_name = [1][*]const u8{"window name"};
     const x: [*]const ?[*]const u8 = &window_name;
-    try expect(mem.eql(u8, std.mem.sliceTo(@as([*:0]const u8, @ptrCast(x[0].?)), 0), "window name"));
+    try std.testing.expect(std.mem.eql(u8, std.mem.sliceTo(@as([*:0]const u8, @ptrCast(x[0].?)), 0), "window name"));
 }
 
 // fn strLit(comptime slice : []const u8) *const [_:0] u8 {
@@ -415,185 +494,52 @@ test "cast *[1][*]const u8 to [*]const ?[*]const u8" {
 pub const OCDP = struct {
     //
 
-    /// Read shader source code from file, compile, and check for errors.
-    /// Assumes you've properly initialized OpenGL and its function pointers.
-    /// Error if any aspect herin fails
-    pub fn _1_shaderCompilation() !ProgramId {
-        // Log out this function name at entry and exit` ` ` ` ` `
-        const memo = comptime NameUtils.ofFunction(_1_shaderCompilation).full();
-        if (!is_test) std.debug.print("[{s}] ..\n", .{memo});
-        defer if (!is_test) std.debug.print("[{s}] done.\n", .{memo});
-        // ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
+    // pub fn _2_UniformsAndAttributesSetup(shaderProgramId: Gl.ProgramId, shape: *const BasicShape) !c.GLuint {
+    //     _ = shaderProgramId;
 
-        // Can be re-used for reading all shader files
-        var cfs = FsUtils.onStack();
-        _ = try cfs.init(&std.heap.page_allocator);
-        defer cfs.deinit();
+    // Define and enable the attributes (e.g., vertex positions).
 
-        // [vertex shader]
-        try cfs.readFileToInternalBuffer("./src/shaders/shader.vert", 1024 * 1024);
-        const vertexShaderSource = try cfs.getBufferAsIs();
-        const vertexShaderId = try ShaderUtils.compile(ShaderType.Vertex, vertexShaderSource);
-        try ShaderUtils.assert.shaderCompiled(vertexShaderId);
+    // Define uniform variables (e.g., color, model-view-projection matrices).
 
-        // [fragment shader]
-        try cfs.readFileToInternalBuffer("./src/shaders/shader.frag", 1024 * 1024);
-        const fragmentShaderSource = try cfs.getBufferAsIs();
-        const fragmentShaderId = try ShaderUtils.compile(ShaderType.Fragment, fragmentShaderSource);
-        try ShaderUtils.assert.shaderCompiled(fragmentShaderId);
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // in this step, you'll set up the vertex attributes and uniform variables.
+    // - Vertex attributes could be things like vertex coordinates, texture coordinates, or normals.
+    // - Uniforms are variables that are consistent across the whole drawing operation.
 
-        // Link shaders into a program
-        const shaderProgramId: ProgramId = c.glCreateProgram();
-        c.glAttachShader(shaderProgramId, vertexShaderId);
-        c.glAttachShader(shaderProgramId, fragmentShaderId);
-        c.glLinkProgram(shaderProgramId);
-        try ShaderUtils.assert.programLinked(shaderProgramId);
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // 1. Define Vertex Attributes:
 
-        // As shaders are now linked into the program, we no longer need them.
-        c.glDeleteShader(vertexShaderId);
-        c.glDeleteShader(fragmentShaderId);
+    // Locate where you've set up your VAO (Vertex Array Object) and VBO (Vertex Buffer Object). Right after you've bound your VAO, use glVertexAttribPointer to define the attributes.
 
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Here, we're defining one attribute (attribute 0), specifying that it has three components (x, y, z), of type GL_FLOAT, and they're tightly packed.
 
-        try ShaderUtils.assert.noGlError("_1_shaderProgram");
-        return shaderProgramId;
-    }
+    // ### TODO ###
+    // - [ ] glBindVertexArray(vao);
+    // - [ ] glBindBuffer(GL_ARRAY_BUFFER, vbo);
+    // - [ ] glEnableVertexAttribArray(0);
+    // - [ ] glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer); // vertex_buffer is retrieved from glGenBuffers
+    // - [ ] glEnableVertexAttribArray(position_attrib_index); // Attribute indexes were received from calls to glGetAttribLocation, or passed into glBindAttribLocation.
+    // - [x] glVertexAttribPointer(position_attrib_index, 3, GL_FLOAT, false, 0, vertex_data); // vertex_data is a float*, 3 per vertex, representing the position of each vertex
 
-    pub fn _2_UniformsAndAttributesSetup(shaderProgramId: ProgramId, cube: *Cube) !c.GLuint {
+    // Enable the attribute arrays we've defined ?? We have? Where??
 
-        // Define and enable the attributes (e.g., vertex positions).
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        // Define uniform variables (e.g., color, model-view-projection matrices).
+    // 3. Uniform Setup:
 
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // In your drawing loop, you'll want to update any uniforms you have in your shader. For example, if you have a transformation matrix, you'd use glUniformMatrix4fv.
 
-        // in this step, you'll set up the vertex attributes and uniform variables.
-        // - Vertex attributes could be things like vertex coordinates, texture coordinates, or normals.
-        // - Uniforms are variables that are consistent across the whole drawing operation.
+    // Here, transform would be a 4x4 matrix defining some transformation.
 
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // 3.1
 
-        // 1. Define Vertex Attributes:
+    // That should get you set up with the basics. Once you've done this, you should be ready to move on to creating and binding buffers.
 
-        // Locate where you've set up your VAO (Vertex Array Object) and VBO (Vertex Buffer Object). Right after you've bound your VAO, use glVertexAttribPointer to define the attributes.
-
-        // Here, we're defining one attribute (attribute 0), specifying that it has three components (x, y, z), of type GL_FLOAT, and they're tightly packed.
-
-        // ### TODO ###
-        // - [ ] glBindVertexArray(vao);
-        // - [ ] glBindBuffer(GL_ARRAY_BUFFER, vbo);
-        // - [ ] glEnableVertexAttribArray(0);
-        // - [ ] glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer); // vertex_buffer is retrieved from glGenBuffers
-        // - [ ] glEnableVertexAttribArray(position_attrib_index); // Attribute indexes were received from calls to glGetAttribLocation, or passed into glBindAttribLocation.
-        // - [x] glVertexAttribPointer(position_attrib_index, 3, GL_FLOAT, false, 0, vertex_data); // vertex_data is a float*, 3 per vertex, representing the position of each vertex
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // Vertex Buffer Object (VBO)
-
-        var vertexBuffer: c.GLuint = undefined;
-        c.glGenBuffers(1, &vertexBuffer);
-        try ShaderUtils.assert.noGlError("3_VBO_generate");
-        // Bind VBO
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, vertexBuffer);
-        try ShaderUtils.assert.noGlError("3_VBO_bind");
-        // set data
-        c.glBufferData(c.GL_ARRAY_BUFFER, @sizeOf(f32) * cube.vertices.len, &cube.vertices, c.GL_STATIC_DRAW);
-        try ShaderUtils.assert.noGlError("3_VBO_data");
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // Vertex Array Object (VAO)
-
-        var vertexArrayObject: c.GLuint = undefined;
-        c.glGenVertexArrays(1, &vertexArrayObject);
-        try ShaderUtils.assert.noGlError("3_VAO_generate");
-        // Bind VAO
-        c.glBindVertexArray(vertexArrayObject);
-        try ShaderUtils.assert.noGlError("3_VAO_bind");
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        const indexOfVertexAttributeToEnable: c.GLuint = 0;
-        c.glEnableVertexAttribArray(indexOfVertexAttributeToEnable);
-        try ShaderUtils.assert.noGlError("2_VertexAttribArray_enable"); // https://docs.gl/gl4/glEnableVertexAttribArray
-
-        const indexOfVertexAttributeToModify: c.GLuint = 0;
-        const numberOfComponentsPerVertexAttribute: c.GLint = 3;
-        const dataTypeOfEachComponent: c.GLenum = c.GL_FLOAT;
-        const normalizeFixedPointDataValues: c.GLboolean = c.GL_FALSE;
-        const byteOffsetBetweenConsecutiveVertexAttribute: c.GLsizei = 3 * @sizeOf(f32);
-        const byteOffsetToFirstGenericVertexAttribute: ?*const c.GLvoid = null;
-
-        // didn't we already bind the buffer? why do we need to do it again?
-        c.glBindBuffer(c.GL_ARRAY_BUFFER, vertexBuffer);
-
-        c.glVertexAttribPointer(
-            indexOfVertexAttributeToModify,
-            numberOfComponentsPerVertexAttribute,
-            dataTypeOfEachComponent,
-            normalizeFixedPointDataValues,
-            byteOffsetBetweenConsecutiveVertexAttribute,
-            byteOffsetToFirstGenericVertexAttribute,
-        );
-        try ShaderUtils.assert.noGlError("2_VertexAttribPointer_modify"); // https://docs.gl/gl4/glVertexAttribPointer
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        // Enable the attribute arrays we've defined ?? We have? Where??
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        // 3. Uniform Setup:
-
-        // In your drawing loop, you'll want to update any uniforms you have in your shader. For example, if you have a transformation matrix, you'd use glUniformMatrix4fv.
-
-        // Here, transform would be a 4x4 matrix defining some transformation.
-
-        // 3.1
-
-        // const nameArray = "transform";
-        const cStringArray = [1][*c]const c.GLchar{"model"};
-        const name: [*c]const c.GLchar = cStringArray[0];
-
-        const targetUniformVariableLocation: c.GLint = c.glGetUniformLocation(shaderProgramId, name);
-        const targetUniformVariableNumberOfMatrices: c.GLsizei = 1;
-
-        try ShaderUtils.assert.noGlError("2_UniformLocation_get"); // https://docs.gl/gl4/glGetUniformLocation
-
-        if (targetUniformVariableLocation == -1) {
-            return error.InvalidUniformLocation;
-        }
-
-        c.glUseProgram(shaderProgramId);
-        try ShaderUtils.assert.noGlError("2_UseProgram");
-
-        var transform_flat: [16]c.GLfloat = undefined;
-        var idx: usize = 0;
-        for (_transform) |row| {
-            for (row) |cell| {
-                transform_flat[idx] = cell;
-                idx += 1;
-            }
-        }
-
-        c.glUniformMatrix4fv(
-            targetUniformVariableLocation,
-            targetUniformVariableNumberOfMatrices,
-            matricesSuppliedIn.colMajorOrder,
-            &transform_flat[0],
-        );
-        try ShaderUtils.assert.noGlError("2_UniformMatrix4fv"); // https://docs.gl/gl4/glUniform
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        // That should get you set up with the basics. Once you've done this, you should be ready to move on to creating and binding buffers.
-
-        // TODO - return the stuff that might be needed in the next step?
-        return vertexArrayObject;
-    }
+    // TODO - return the stuff that might be needed in the next step?
+    //     return vertexArrayObject;
+    // }
 
     pub fn _3_BuffersAndVertexArraySetup() !void {
 
@@ -615,8 +561,8 @@ pub const OCDP = struct {
         return void{};
     }
 
-    pub fn _4_CubeGeometrySetup_wireframe(vertexArrayObject: c.GLuint, cube: *const Cube) !void {
-        _ = cube;
+    pub fn _4_CubeGeometrySetup_wireframe(vertexArrayObject: c.GLuint, shape: *const BasicShape) !void {
+        _ = shape;
         _ = vertexArrayObject;
 
         // Define vertices for a cube.

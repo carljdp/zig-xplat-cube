@@ -8,9 +8,13 @@ const print = std.debug.print;
 const panic = std.debug.panic;
 
 /// ChatGPT 'plan' (imported)
-const OCDP = @import("OCDP.zig").OCDP;
-const ProgramId = @import("OCDP.zig").ProgramId;
-var cube = @import("OCDP.zig").Cube{};
+const _OCDP_ = @import("OCDP.zig");
+const OCDP2 = @import("OCDP2.zig").OCDP2;
+const OCDP = _OCDP_.OCDP;
+const ShaderProgramId = _OCDP_.Gl.ProgramId;
+const BasicShape = _OCDP_.BasicShape;
+var cube: BasicShape = _OCDP_.cube;
+var triangle: BasicShape = _OCDP_.triangle;
 
 //=============================================================================
 pub fn main2() !void {
@@ -35,6 +39,7 @@ pub fn main2() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 1);
     c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, c.GL_TRUE);
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
+    c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, c.GL_TRUE);
 
     const windowWidth: c_int = 640;
     const windowHeight: c_int = 480;
@@ -65,8 +70,8 @@ pub fn main2() !void {
     // get version info
     const renderer = c.glGetString(c.GL_RENDERER); // get renderer string
     const version = c.glGetString(c.GL_VERSION); // version as a string
-    std.debug.print("[_GL_] Rederer: {any}\n", .{renderer});
-    std.debug.print("[_GL_] Version: {any}\n", .{version});
+    std.debug.print("[_GL_] Rederer: {s}\n", .{renderer});
+    std.debug.print("[_GL_] Version: {s}\n", .{version});
 
     // tell GL to only draw onto a pixel if the shape is closer to the viewer
     c.glEnable(c.GL_DEPTH_TEST); // enable depth-testing
@@ -79,19 +84,27 @@ pub fn main2() !void {
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     //-----------------------------------------------------------------------------
+    // var testShape = triangle;
 
-    // compile shaders, link program
-    const shaderProgramId: ProgramId = try OCDP._1_shaderCompilation();
-    std.debug.print("[OCDP] ProgramId: {d}\n", .{shaderProgramId});
+    // // compile shaders, link program
+    // const shaderProgramId: ShaderProgramId = try OCDP._1_shaderCompilation();
+    // std.debug.print("[OCDP] ProgramId: {d}\n", .{shaderProgramId});
 
-    // set up uniforms and attributes
-    const vertexArrayObjectRef = try OCDP._2_UniformsAndAttributesSetup(shaderProgramId, &cube);
+    // // set up uniforms and attributes
+    // const vertexArrayObjectRef = try OCDP._2_UniformsAndAttributesSetup(shaderProgramId, &testShape);
 
-    // set up buffers and vertex array object
-    try OCDP._3_BuffersAndVertexArraySetup();
+    // // set up buffers and vertex array object
+    // try OCDP._3_BuffersAndVertexArraySetup();
 
-    // set up wireframe
-    try OCDP._4_CubeGeometrySetup_wireframe(vertexArrayObjectRef, &cube);
+    // // set up wireframe
+    // try OCDP._4_CubeGeometrySetup_wireframe(vertexArrayObjectRef, &testShape);
+
+    var ocdp2 = OCDP2.onStack(null);
+    try ocdp2.init();
+    defer ocdp2.deinit();
+
+    try ocdp2.setup();
+    try ocdp2.render();
 
     //-----------------------------------------------------------------------------
     // Main / render / draw loop
@@ -109,8 +122,8 @@ pub fn main2() !void {
 
         // wipe the drawing surface clear
         c.glClear(c.GL_COLOR_BUFFER_BIT | c.GL_DEPTH_BUFFER_BIT);
-        c.glUseProgram(shaderProgramId);
-        c.glBindVertexArray(vertexArrayObjectRef);
+        c.glUseProgram(ocdp2.glObjects.program.?);
+        c.glBindVertexArray(ocdp2.glObjects.vao.?);
         // draw points 0-3 from the currently bound VAO with current in-use shader
         c.glDrawArrays(c.GL_TRIANGLES, 0, 3);
         // update other events like input handling
