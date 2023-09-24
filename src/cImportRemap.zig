@@ -45,6 +45,7 @@ pub const GL = struct {
     pub const _uint = c.GLuint;
     pub const _char = c.GLchar;
     pub const _sizei = c.GLsizei;
+    pub const _sizeiptr = c.GLsizeiptr;
     pub const _float = c.GLfloat;
 
     // Straight-through constants

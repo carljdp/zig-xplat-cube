@@ -186,50 +186,53 @@ pub const OCDP2 = struct {
 
         //=============================================================================
 
-        // Vertex Buffer Object (VBO)
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // VBO: Generate & Bind
 
-        var vertexBuffer: GL._uint = undefined;
-        GL.genBuffers(1, &vertexBuffer);
-        try ShaderUtils.assert.noGlError("3_VBO_generate");
+        self.glObjects.vbo = blk: {
+            var arrayOfVboNames: GL._uint = undefined;
+            GL.genBuffers(1, &arrayOfVboNames);
+            try ShaderUtils.assert.noGlError("3_VBO_generate");
+
+            // No buffer objects are associated with the returned buffer object names
+            // until they are first bound by calling glBindBuffer.
+            GL.bindBuffer(GL.ARRAY_BUFFER, arrayOfVboNames);
+            try ShaderUtils.assert.noGlError("3_VBO_bind");
+
+            break :blk arrayOfVboNames;
+        };
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.glObjects.vbo = vertexBuffer;
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        // Bind VBO
-        GL.bindBuffer(GL.ARRAY_BUFFER, self.glObjects.vbo.?);
-        try ShaderUtils.assert.noGlError("3_VBO_bind");
-        // set data
-        // GL.bufferData(GL.ARRAY_BUFFER, @as(GL.Tsizeiptr, @sizeOf(f32) * @as(c_longlong, shape.vertices.*.len)), &shape.vertices, GL.STATIC_DRAW);
+        // VBO: Set Data
 
         const maxVertexCount = @as(usize, @intCast(std.math.maxInt(c_longlong)));
         const verticesLengthOrPanic = if (testShape.vertices.len <= maxVertexCount) @as(c_longlong, @intCast(testShape.vertices.len)) else std.debug.panic("shape.vertices.len too large", .{});
         const verticesPtr: ?*const anyopaque = @ptrCast(&testShape.vertices);
+
         GL.bufferData(GL.ARRAY_BUFFER, verticesLengthOrPanic, verticesPtr, GL.STATIC_DRAW);
         try ShaderUtils.assert.noGlError("3_VBO_data");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // Vertex Array Object (VAO)
+        // VAO: Generate & Bind
 
-        var vertexArrayObject: GL._uint = undefined;
-        GL.genVertexArrays(1, &vertexArrayObject);
-        try ShaderUtils.assert.noGlError("3_VAO_generate");
+        self.glObjects.vao = blk: {
+            var arrayOfVaoNames: GL._uint = undefined;
+            GL.genVertexArrays(1, &arrayOfVaoNames);
+            try ShaderUtils.assert.noGlError("3_VAO_generate");
 
+            // Acquires state and type only when they are first bound.
+            GL.bindVertexArray(arrayOfVaoNames);
+            try ShaderUtils.assert.noGlError("3_VAO_bind");
+
+            break :blk arrayOfVaoNames;
+        };
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.glObjects.vao = vertexArrayObject;
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        // Bind VAO
-        GL.bindVertexArray(self.glObjects.vao.?);
-        try ShaderUtils.assert.noGlError("3_VAO_bind");
+        const attributeIndex: GL._uint = 0;
 
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        const indexOfVertexAttributeToEnable: GL._uint = 0;
-        GL.enableVertexAttribArray(indexOfVertexAttributeToEnable);
+        GL.enableVertexAttribArray(attributeIndex);
         try ShaderUtils.assert.noGlError("2_VertexAttribArray_enable"); // https://docs.gl/gl4/glEnableVertexAttribArray
 
-        const indexOfVertexAttributeToModify: GL._uint = 0;
         const numberOfComponentsPerVertexAttribute: GL._int = 3;
         const dataTypeOfEachComponent: GL._enum = GL.FLOAT;
         const normalizeFixedPointDataValues: GL._boolean = GL.FALSE;
@@ -240,7 +243,7 @@ pub const OCDP2 = struct {
         GL.bindBuffer(GL.ARRAY_BUFFER, self.glObjects.vbo.?);
 
         GL.vertexAttribPointer(
-            indexOfVertexAttributeToModify,
+            attributeIndex,
             numberOfComponentsPerVertexAttribute,
             dataTypeOfEachComponent,
             normalizeFixedPointDataValues,
