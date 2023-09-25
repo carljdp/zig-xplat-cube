@@ -7,7 +7,8 @@ const expect = std.testing.expect;
 const print = std.debug.print;
 const panic = std.debug.panic;
 
-/// ChatGPT 'plan' (imported)
+// ChatGPT 'plan' (imported)
+const ShaderUtils = @import("OCDP.zig").ShaderUtils;
 const GL = @import("cImportRemap.zig").GL;
 const _OCDP_ = @import("OCDP.zig");
 const OCDP2 = @import("OCDP2.zig").OCDP2;
@@ -38,9 +39,11 @@ pub fn main2() !void {
     c.glfwWindowHint(c.GLFW_SAMPLES, 4);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MAJOR, 4);
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 1);
-    c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, c.GL_TRUE);
+
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
-    c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, c.GL_TRUE);
+    c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, GL.TRUE);
+    c.glfwWindowHint(c.GLFW_RESIZABLE, GL.FALSE);
+    // c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, c.GL_TRUE);
 
     const windowWidth: c_int = 640;
     const windowHeight: c_int = 480;
@@ -54,8 +57,6 @@ pub fn main2() !void {
 
     // Set up key (as-in 'key-press') callback
     _ = c.glfwSetKeyCallback(window, keyCallback);
-
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // Make the context current
     c.glfwMakeContextCurrent(window);
@@ -74,66 +75,43 @@ pub fn main2() !void {
     std.debug.print("[_GL_] Rederer: {s}\n", .{renderer});
     std.debug.print("[_GL_] Version: {s}\n", .{version});
 
-    // tell GL to only draw onto a pixel if the shape is closer to the viewer
-    GL.enable(GL.DEPTH_TEST); // enable depth-testing
-    GL.depthFunc(GL.LESS); // depth-testing interprets a smaller value as "closer"
-
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
     c.glfwSwapInterval(1);
-
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    //-----------------------------------------------------------------------------
-    // var testShape = triangle;
-
-    // // compile shaders, link program
-    // const shaderProgramId: ShaderProgramId = try OCDP._1_shaderCompilation();
-    // std.debug.print("[OCDP] ProgramId: {d}\n", .{shaderProgramId});
-
-    // // set up uniforms and attributes
-    // const vertexArrayObjectRef = try OCDP._2_UniformsAndAttributesSetup(shaderProgramId, &testShape);
-
-    // // set up buffers and vertex array object
-    // try OCDP._3_BuffersAndVertexArraySetup();
-
-    // // set up wireframe
-    // try OCDP._4_CubeGeometrySetup_wireframe(vertexArrayObjectRef, &testShape);
 
     var ocdp2 = OCDP2.onStack(null);
     try ocdp2.init();
     defer ocdp2.deinit();
 
     try ocdp2.setup();
-    try ocdp2.render();
-
-    //-----------------------------------------------------------------------------
-    // Main / render / draw loop
-
-    // var width: c_int = undefined;
-    // var height: c_int = undefined;
-    // var ratio: c.float_t =undefined;
 
     while (c.glfwWindowShouldClose(window) == GL.FALSE) {
-        // c.glfwGetFramebufferSize(windowRef, &width, &height);
-        // ratio = @as(c.float_t, @floatFromInt(width)) / @as(c.float_t, @floatFromInt(height));
+        // c.glfwGetFramebufferSize(window, @constCast(&windowWidth), @constCast(&windowHeight));
+        // var ratio = @as(c.float_t, @floatFromInt(windowWidth)) / @as(c.float_t, @floatFromInt(windowHeight));
+        // _ = ratio;
+        GL.viewport(0, 0, windowWidth, windowHeight);
 
-        // c.glfwSwapBuffers(window);
-        // c.glfwPollEvents();
+        GL.clearColor(0.0, 0.0, 0.4, 0.0);
+        GL.clear(GL.COLOR_BUFFER_BIT);
 
-        // wipe the drawing surface clear
-        GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
         GL.useProgram(ocdp2.glObjects.program.?);
         GL.bindVertexArray(ocdp2.glObjects.vao.?);
-        // draw points 0-3 from the currently bound VAO with current in-use shader
-        GL.drawArrays(GL.TRIANGLES, 0, 3);
-        // update other events like input handling
-        c.glfwPollEvents();
-        // put the stuff we've been drawing onto the display
+        // GL.drawElements(GL.TRIANGLES, 6, c.GL_UNSIGNED_INT, null);
+        GL.drawElements(GL.TRIANGLES, 3, c.GL_UNSIGNED_INT, null);
+
         c.glfwSwapBuffers(window);
+        c.glfwPollEvents();
     }
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    // Cleanup
+    GL.deleteBuffers(1, &ocdp2.glObjects.vbo.?);
+    GL.deleteVertexArrays(1, &ocdp2.glObjects.vao.?);
+    GL.deleteProgram(ocdp2.glObjects.program.?);
+
+    try ShaderUtils.assert.noGlError("cleanup");
+
+    // Clean up glfw already handled via defer
+
+    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     return void{};
 }
 

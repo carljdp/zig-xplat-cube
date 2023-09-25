@@ -128,15 +128,16 @@ pub const cube = BasicShape{
 
 pub const triangle = BasicShape{
     .vertices = &[_]f32{
-        // Front face
-        0.0,  0.5,  0.0,
+        0.5,  0.5,  0.0,
         0.5,  -0.5, 0.0,
         -0.5, -0.5, 0.0,
+        -0.5, 0.5,  0.0,
     },
 
     // Example indices for a cube
     .indices = &[_]GL._uint{
-        0, 1, 2, // Front face
+        0, 1, 3,
+        1, 2, 3,
     },
 };
 
@@ -220,6 +221,9 @@ pub const ShaderUtils = struct {
             if (status == GL.TRUE) return void{};
 
             // ..else log it, and return an error
+
+            // TODO: look at programLinked() below, to remove const maxLength = 512;
+
             const maxLength = 512;
             var string: [maxLength]GL._char = undefined;
             var stringLength: GL._sizei = undefined;
@@ -235,11 +239,22 @@ pub const ShaderUtils = struct {
             if (status == GL.TRUE) return void{};
 
             // ..else log it, and return an error
-            const maxLength = 512;
-            var string: [maxLength]GL._char = undefined;
-            var stringLength: GL._sizei = undefined;
-            GL.getProgramInfoLog(program, maxLength, &stringLength, &string);
-            std.debug.print("Failed to link shader. GL Info Log:\n{s}\n", .{string[0..string.len]});
+
+            var infoLogLength: GL._int = undefined;
+            GL.getProgramiv(program, GL.INFO_LOG_LENGTH, &infoLogLength);
+            const allocator: std.mem.Allocator = std.heap.page_allocator;
+
+            // '+1' from tutorial, maybe for null termination?
+            // - should we add null manually?
+            const _infoLength: usize = @intCast(infoLogLength);
+            var programErrorMessage = try allocator.alloc(GL._char, _infoLength + 1);
+            defer allocator.free(programErrorMessage);
+
+            // ## TODO ## should this not be .ptr instead of @ptrCast(&..) ? like we did with GL.bufferData() ?
+            var cCompatPtrToStringBuffer: [*c]GL._char = @ptrCast(&programErrorMessage);
+
+            GL.getProgramInfoLog(program, infoLogLength, null, cCompatPtrToStringBuffer);
+            std.debug.print("Failed to link shader. GL Info Log:\n{s}\n", .{programErrorMessage[0..programErrorMessage.len]});
             return error.GL_ShaderProgramLink_Failed;
         }
 

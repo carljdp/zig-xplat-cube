@@ -48,12 +48,17 @@ precision mediump float;
 // OCDP
 // #version 330 core
 
-out vec4 FragColor;
+// Interpolated values from the vertex shaders
+// in vec3 fragmentColor;
 
-uniform vec3 color;
+// out vec4 FragColor;
+out vec3 color;
+
+// uniform vec3 color;
 
 void main(){
   
-  FragColor=vec4(color,1.);
+// FragColor=vec4(color,1.);
+color=vec3(1,0,0);
   
 }

@@ -35,6 +35,7 @@ pub const GlObjectStuff = struct {
     program: ?GL._uint = null,
     vao: ?GL._uint = null,
     vbo: ?GL._uint = null,
+    ebo: ?GL._uint = null,
     shape: BasicShape = testShape,
 };
 
@@ -108,83 +109,65 @@ pub const OCDP2 = struct {
         _ = try cfs.init(&std.heap.page_allocator);
         defer cfs.deinit();
 
+        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // [vertex shader]
-        try cfs.readFileToInternalBuffer("./src/shaders/shader.vert", 1024 * 1024);
-        const vertexShaderSource = try cfs.getBufferAsIs();
-        const vertexShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Vertex, vertexShaderSource);
-        try ShaderUtils.assert.shaderCompiled(vertexShaderId);
+
+        self.glObjects.vertexShader = blk: {
+            try cfs.readFileToInternalBuffer("./src/shaders/shader.vert", 1024 * 1024);
+            const vertexShaderSource = try cfs.getBufferAsIs();
+            const vertexShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Vertex, vertexShaderSource);
+            try ShaderUtils.assert.shaderCompiled(vertexShaderId);
+            break :blk vertexShaderId;
+        };
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.glObjects.vertexShader = vertexShaderId;
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
         // [fragment shader]
-        try cfs.readFileToInternalBuffer("./src/shaders/shader.frag", 1024 * 1024);
-        const fragmentShaderSource = try cfs.getBufferAsIs();
-        const fragmentShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Fragment, fragmentShaderSource);
-        try ShaderUtils.assert.shaderCompiled(fragmentShaderId);
+
+        self.glObjects.fragmentShader = blk: {
+            try cfs.readFileToInternalBuffer("./src/shaders/shader.frag", 1024 * 1024);
+            const fragmentShaderSource = try cfs.getBufferAsIs();
+            const fragmentShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Fragment, fragmentShaderSource);
+            try ShaderUtils.assert.shaderCompiled(fragmentShaderId);
+            break :blk fragmentShaderId;
+        };
 
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.glObjects.fragmentShader = fragmentShaderId;
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
         // Link shaders into a program
-        const shaderProgramId: MyGl.ProgramId = GL.createProgram();
-        GL.attachShader(shaderProgramId, self.glObjects.vertexShader.?);
-        GL.attachShader(shaderProgramId, self.glObjects.fragmentShader.?);
-        GL.linkProgram(shaderProgramId);
-        try ShaderUtils.assert.programLinked(shaderProgramId);
 
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        self.glObjects.program = shaderProgramId;
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        self.glObjects.program = blk: {
+            const shaderProgramId: MyGl.ProgramId = GL.createProgram();
+            GL.attachShader(shaderProgramId, self.glObjects.vertexShader.?);
+            GL.attachShader(shaderProgramId, self.glObjects.fragmentShader.?);
+            GL.linkProgram(shaderProgramId);
+            try ShaderUtils.assert.programLinked(shaderProgramId);
+            break :blk shaderProgramId;
+        };
 
-        // As shaders are now linked into the program, we no longer need them.
+        GL.detachShader(self.glObjects.program.?, self.glObjects.vertexShader.?);
+        GL.detachShader(self.glObjects.program.?, self.glObjects.fragmentShader.?);
+        try ShaderUtils.assert.noGlError("detachShaders");
+
         GL.deleteShader(self.glObjects.vertexShader.?);
         GL.deleteShader(self.glObjects.fragmentShader.?);
-        try ShaderUtils.assert.noGlError("glDeleteShader");
+        try ShaderUtils.assert.noGlError("deleteShaders");
 
-        //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         self.glObjects.vertexShader = null;
         self.glObjects.fragmentShader = null;
+
         //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // VAO: Generate & Bind
 
-        //=============================================================================
+        self.glObjects.vao = blk: {
+            var arrayOfVaoNames: GL._uint = undefined;
+            GL.genVertexArrays(1, &arrayOfVaoNames);
+            try ShaderUtils.assert.noGlError("3_VAO_generate");
 
-        // const nameArray = "transform";
-        const cStringArray = [1][*c]const GL._char{"model"};
-        const name: [*c]const GL._char = cStringArray[0];
+            // Acquires state and type only when they are first bound.
+            GL.bindVertexArray(arrayOfVaoNames);
+            try ShaderUtils.assert.noGlError("3_VAO_bind");
 
-        const targetUniformVariableLocation: GL._int = GL.getUniformLocation(self.glObjects.program.?, name);
-        const targetUniformVariableNumberOfMatrices: GL._sizei = 1;
-
-        try ShaderUtils.assert.noGlError("2_UniformLocation_get"); // https://docs.gl/gl4/glGetUniformLocation
-
-        if (targetUniformVariableLocation == -1) {
-            return error.InvalidUniformLocation;
-        }
-
-        GL.useProgram(self.glObjects.program.?);
-        try ShaderUtils.assert.noGlError("2_UseProgram");
-
-        var transform_flat: [16]GL._float = undefined;
-        var idx: usize = 0;
-        for (_transform) |row| {
-            for (row) |cell| {
-                transform_flat[idx] = cell;
-                idx += 1;
-            }
-        }
-
-        GL.uniformMatrix4fv(
-            targetUniformVariableLocation,
-            targetUniformVariableNumberOfMatrices,
-            MatricesSuppliedIn.colMajorOrder,
-            &transform_flat[0],
-        );
-        try ShaderUtils.assert.noGlError("2_UniformMatrix4fv"); // https://docs.gl/gl4/glUniform
-
-        //=============================================================================
+            break :blk arrayOfVaoNames;
+        };
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // VBO: Generate & Bind
@@ -202,58 +185,55 @@ pub const OCDP2 = struct {
             break :blk arrayOfVboNames;
         };
 
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // VBO: Set Data
 
         const maxVertexCount = @as(usize, @intCast(std.math.maxInt(c_longlong)));
         const verticesLengthOrPanic = if (testShape.vertices.len <= maxVertexCount) @as(c_longlong, @intCast(testShape.vertices.len)) else std.debug.panic("shape.vertices.len too large", .{});
-        const verticesPtr: ?*const anyopaque = @ptrCast(&testShape.vertices);
 
-        GL.bufferData(GL.ARRAY_BUFFER, verticesLengthOrPanic, verticesPtr, GL.STATIC_DRAW);
+        // * size of vertexComponent's type i.e. f32
+        const verticesDataStoreSize: GL._sizeiptr = verticesLengthOrPanic * @sizeOf(f32);
+        if (verticesDataStoreSize == 0) std.debug.panic("verticesDataStoreSize is 0\n", .{});
+
+        GL.bufferData(GL.ARRAY_BUFFER, verticesDataStoreSize, testShape.vertices.ptr, GL.STATIC_DRAW);
         try ShaderUtils.assert.noGlError("3_VBO_data");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-        // VAO: Generate & Bind
 
-        self.glObjects.vao = blk: {
-            var arrayOfVaoNames: GL._uint = undefined;
-            GL.genVertexArrays(1, &arrayOfVaoNames);
-            try ShaderUtils.assert.noGlError("3_VAO_generate");
+        // EBO: Generate & Bind
+
+        self.glObjects.ebo = blk: {
+            var arrayOfEboNames: GL._uint = undefined;
+            GL.genBuffers(1, &arrayOfEboNames);
+            try ShaderUtils.assert.noGlError("3_EBO_generate");
 
             // Acquires state and type only when they are first bound.
-            GL.bindVertexArray(arrayOfVaoNames);
-            try ShaderUtils.assert.noGlError("3_VAO_bind");
+            GL.bindBuffer(GL.ELEMENT_ARRAY_BUFFER, arrayOfEboNames);
+            try ShaderUtils.assert.noGlError("3_EBO_bind");
 
-            break :blk arrayOfVaoNames;
+            break :blk arrayOfEboNames;
         };
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        const attributeIndex: GL._uint = 0;
+        // EBO: Set Data
 
-        GL.enableVertexAttribArray(attributeIndex);
-        try ShaderUtils.assert.noGlError("2_VertexAttribArray_enable"); // https://docs.gl/gl4/glEnableVertexAttribArray
+        const maxIndexCount = @as(usize, @intCast(std.math.maxInt(c_longlong)));
+        const indicesLengthOrPanic = if (testShape.indices.len <= maxIndexCount) @as(c_longlong, @intCast(testShape.indices.len)) else std.debug.panic("shape.indices.len too large", .{});
 
-        const numberOfComponentsPerVertexAttribute: GL._int = 3;
-        const dataTypeOfEachComponent: GL._enum = GL.FLOAT;
-        const normalizeFixedPointDataValues: GL._boolean = GL.FALSE;
-        const byteOffsetBetweenConsecutiveVertexAttribute: GL._sizei = 3 * @sizeOf(f32);
-        const byteOffsetToFirstGenericVertexAttribute: ?*const GL._void = null;
+        // * size of index's type i.e. GL._uint
+        const indicesDataStoreSize: GL._sizeiptr = indicesLengthOrPanic * @sizeOf(GL._uint);
+        if (indicesDataStoreSize == 0) std.debug.panic("indicesDataStoreSize is 0\n", .{});
 
-        // didn't we already bind the buffer? why do we need to do it again?
-        GL.bindBuffer(GL.ARRAY_BUFFER, self.glObjects.vbo.?);
-
-        GL.vertexAttribPointer(
-            attributeIndex,
-            numberOfComponentsPerVertexAttribute,
-            dataTypeOfEachComponent,
-            normalizeFixedPointDataValues,
-            byteOffsetBetweenConsecutiveVertexAttribute,
-            byteOffsetToFirstGenericVertexAttribute,
-        );
-        try ShaderUtils.assert.noGlError("2_VertexAttribPointer_modify"); // https://docs.gl/gl4/glVertexAttribPointer
+        GL.bufferData(GL.ELEMENT_ARRAY_BUFFER, indicesDataStoreSize, testShape.indices.ptr, GL.STATIC_DRAW);
+        try ShaderUtils.assert.noGlError("3_EBO_data");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+        GL.vertexAttribPointer(0, 3, GL.FLOAT, GL.FALSE, 3 * @sizeOf(f32), null);
+        GL.enableVertexAttribArray(0);
+
+        // unbind VBO
+        GL.bindBuffer(c.GL_ARRAY_BUFFER, 0);
+        // unbind VAO
+        GL.bindVertexArray(0);
     }
 
     pub fn render(self: *OCDP2) !void {

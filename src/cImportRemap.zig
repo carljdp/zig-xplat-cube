@@ -35,6 +35,13 @@ pub const GL = struct {
     pub const getString = c.glGetString;
     pub const enable = c.glEnable;
     pub const depthFunc = c.glDepthFunc;
+    pub const disableVertexAttribArray = c.glDisableVertexAttribArray;
+    pub const detachShader = c.glDetachShader;
+    pub const clearColor = c.glClearColor;
+    pub const deleteBuffers = c.glDeleteBuffers;
+    pub const deleteVertexArrays = c.glDeleteVertexArrays;
+    pub const deleteProgram = c.glDeleteProgram;
+    pub const viewport = c.glViewport;
 
     // Straight-through typedefs
 
@@ -262,7 +269,7 @@ pub const GL = struct {
     // pub const DYNAMIC_COPY: c_int = c.GL_DYNAMIC_COPY;
     // pub const DYNAMIC_DRAW: c_int = c.GL_DYNAMIC_DRAW;
     // pub const DYNAMIC_READ: c_int = c.GL_DYNAMIC_READ;
-    // pub const ELEMENT_ARRAY_BUFFER: c_int = c.GL_ELEMENT_ARRAY_BUFFER;
+    pub const ELEMENT_ARRAY_BUFFER: c_int = c.GL_ELEMENT_ARRAY_BUFFER;
     // pub const ELEMENT_ARRAY_BUFFER_BINDING: c_int = c.GL_ELEMENT_ARRAY_BUFFER_BINDING;
     // pub const EQUAL: c_int = c.GL_EQUAL;
     // pub const EQUIV: c_int = c.GL_EQUIV;
@@ -345,7 +352,7 @@ pub const GL = struct {
     // pub const IMPLEMENTATION_COLOR_READ_TYPE: c_int = c.GL_IMPLEMENTATION_COLOR_READ_TYPE;
     // pub const INCR: c_int = c.GL_INCR;
     // pub const INCR_WRAP: c_int = c.GL_INCR_WRAP;
-    // pub const INFO_LOG_LENGTH: c_int = c.GL_INFO_LOG_LENGTH;
+    pub const INFO_LOG_LENGTH: c_int = c.GL_INFO_LOG_LENGTH;
     // pub const INT: c_int = c.GL_INT;
     // pub const INTERLEAVED_ATTRIBS: c_int = c.GL_INTERLEAVED_ATTRIBS;
     // pub const INT_2_10_10_10_REV: c_int = c.GL_INT_2_10_10_10_REV;
