@@ -1,4 +1,9 @@
+// generics
 const std = @import("std");
+
+// 3rd party
+const zm = @import("zmath");
+
 const c = @import("c.zig");
 const TT = @import("TT.zig").TT;
 const XT = @import("TT.zig").ExplicitTypes;
@@ -93,7 +98,13 @@ pub fn main2() !void {
         GL.clear(GL.COLOR_BUFFER_BIT);
 
         GL.useProgram(ocdp2.glObjects.program.?);
+
+        // Send our transformation to the currently bound shader, in the "MVP" uniform
+        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
+        GL.uniformMatrix4fv(ocdp2.glObjects.matrixId.?, 1, GL.FALSE, &ocdp2.glObjects.mvp.?[0][0]);
+
         GL.bindVertexArray(ocdp2.glObjects.vao.?);
+
         // GL.drawElements(GL.TRIANGLES, 6, c.GL_UNSIGNED_INT, null);
         GL.drawElements(GL.TRIANGLES, 3, c.GL_UNSIGNED_INT, null);
 

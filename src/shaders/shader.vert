@@ -40,6 +40,9 @@ precision mediump float;
 
 layout(location=0)in vec3 vertexPosition_modelspace;
 
+// Values that stay constant for the whole mesh.
+uniform mat4 MVP;
+
 // Notice that the "1" here equals the "1" in glVertexAttribPointer
 // layout(location=1)in vec3 vertexColor;
 
@@ -53,8 +56,9 @@ layout(location=0)in vec3 vertexPosition_modelspace;
 void main(){
   
 // gl_Position=projection*view*model*vec4(vertexPosition_modelspace,1.);
-gl_Position.xyz=vertexPosition_modelspace;
-gl_Position.w=1.;
+// gl_Position.xyz=vertexPosition_modelspace;
+// gl_Position.w=1.;
+gl_Position=MVP*vec4(vertexPosition_modelspace,1);
 
 // The color of each vertex will be interpolated
 // to produce the color of each fragment

@@ -2,6 +2,9 @@
 const std = @import("std");
 const c = @import("c.zig");
 
+// 3rd party
+const zm = @import("zmath");
+
 // debug helpers
 const is_test = @import("builtin").is_test;
 const NameUtils = @import("debug_helpers.zig").DotNotation;
@@ -37,6 +40,8 @@ pub const GlObjectStuff = struct {
     vbo: ?GL._uint = null,
     ebo: ?GL._uint = null,
     shape: BasicShape = testShape,
+    matrixId: ?GL._int = null,
+    mvp: ?zm.Mat = null,
 };
 
 pub const OCDP2 = struct {
@@ -234,6 +239,26 @@ pub const OCDP2 = struct {
         GL.bindBuffer(c.GL_ARRAY_BUFFER, 0);
         // unbind VAO
         GL.bindVertexArray(0);
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // Create matrices
+
+        // Projection matrix
+        const projection = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
+
+        // View (camera) matrix
+        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
+
+        // Model matrix
+        const model = zm.identity();
+
+        // Multiply matrices
+        const mv = zm.mul(model, view);
+        self.glObjects.mvp = zm.mul(mv, projection);
+
+        // Get a handle for our "MVP" uniform
+        // Only during the initialisation
+        self.glObjects.matrixId = GL.getUniformLocation(self.glObjects.program.?, "MVP");
     }
 
     pub fn render(self: *OCDP2) !void {
