@@ -49,16 +49,15 @@ precision mediump float;
 // #version 330 core
 
 // Interpolated values from the vertex shaders
-// in vec3 fragmentColor;
+in vec3 fragmentColor;
 
-// out vec4 FragColor;
+// Ouput data
 out vec3 color;
-
-// uniform vec3 color;
 
 void main(){
   
-// FragColor=vec4(color,1.);
-color=vec3(1,0,0);
+// Output color = color specified in the vertex shader,
+// interpolated between all 3 surrounding vertices
+color=fragmentColor;
   
 }

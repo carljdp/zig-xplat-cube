@@ -20,7 +20,7 @@ const MyGl = @import("OCDP.zig").MyGl;
 const ShaderUtils = @import("OCDP.zig").ShaderUtils;
 const BasicShape = @import("OCDP.zig").BasicShape;
 const MatricesSuppliedIn = @import("OCDP.zig").MatricesSuppliedIn;
-const testShape = @import("OCDP.zig").triangle;
+const testShape = @import("OCDP.zig").cube;
 const _transform = @import("OCDP.zig")._transform;
 
 //=============================================================================
@@ -33,15 +33,16 @@ pub const OCDP2Options = struct {
 };
 
 pub const GlObjectStuff = struct {
-    vertexShader: ?GL._uint = null,
-    fragmentShader: ?GL._uint = null,
-    program: ?GL._uint = null,
-    vao: ?GL._uint = null,
-    vbo: ?GL._uint = null,
-    ebo: ?GL._uint = null,
+    vertexShader: ?GL._uint = null, // vertex shader id
+    fragmentShader: ?GL._uint = null, // fragment shader id
+    program: ?GL._uint = null, // shader program id
+    vao: ?GL._uint = null, // vertex array object
+    vbo: ?GL._uint = null, // vertex buffer object
+    ebo: ?GL._uint = null, // element buffer object
+    colorBuffer: ?GL._uint = null, // color buffer
     shape: BasicShape = testShape,
-    matrixId: ?GL._int = null,
-    mvp: ?zm.Mat = null,
+    matrixId: ?GL._int = null, // matrix id ?
+    mvp: ?zm.Mat = null, // model-view-projection matrix
 };
 
 pub const OCDP2 = struct {
@@ -232,13 +233,36 @@ pub const OCDP2 = struct {
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-        GL.vertexAttribPointer(0, 3, GL.FLOAT, GL.FALSE, 3 * @sizeOf(f32), null);
-        GL.enableVertexAttribArray(0);
+        // Color buffer: generate & bind
+
+        self.glObjects.colorBuffer = blk: {
+            var arrayOfBufferNames: GL._uint = undefined;
+            GL.genBuffers(1, &arrayOfBufferNames);
+            try ShaderUtils.assert.noGlError("3_ColorBuffer_generate");
+
+            // Acquires state and type only when they are first bound.
+            GL.bindBuffer(GL.ARRAY_BUFFER, arrayOfBufferNames);
+            try ShaderUtils.assert.noGlError("3_ColorBuffer_bind");
+
+            break :blk arrayOfBufferNames;
+        };
+
+        // Color buffer: set data
+
+        const maxColBuffCount = @as(usize, @intCast(std.math.maxInt(c_longlong)));
+        const colBuffLengthOrPanic = if (testShape.colors.len <= maxColBuffCount) @as(c_longlong, @intCast(testShape.colors.len)) else std.debug.panic("shape.colors.len too large", .{});
+
+        // * size of colBuff's type i.e. f32
+        const colBuffDataStoreSize: GL._sizeiptr = colBuffLengthOrPanic * @sizeOf(f32);
+        if (colBuffDataStoreSize == 0) std.debug.panic("colBuffDataStoreSize is 0\n", .{});
+
+        GL.bufferData(GL.ARRAY_BUFFER, colBuffDataStoreSize, testShape.colors.ptr, GL.STATIC_DRAW);
+        try ShaderUtils.assert.noGlError("3_ColorBuffer_data");
 
         // unbind VBO
-        GL.bindBuffer(c.GL_ARRAY_BUFFER, 0);
+        // GL.bindBuffer(c.GL_ARRAY_BUFFER, 0);
         // unbind VAO
-        GL.bindVertexArray(0);
+        // GL.bindVertexArray(0);
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
         // Create matrices

@@ -88,13 +88,19 @@ pub fn main2() !void {
 
     try ocdp2.setup();
 
+    GL.clearColor(0.0, 0.0, 0.4, 0.0);
+
+    // Notice that the "1" here mathes the "location=1" in vertex shader
+    const attributeLocation_color = 1;
+    // Notice that the "0" here mathes the "location=0" in vertex shader
+    const attributeLocation_vbo = 0;
+
     while (c.glfwWindowShouldClose(window) == GL.FALSE) {
         // c.glfwGetFramebufferSize(window, @constCast(&windowWidth), @constCast(&windowHeight));
         // var ratio = @as(c.float_t, @floatFromInt(windowWidth)) / @as(c.float_t, @floatFromInt(windowHeight));
         // _ = ratio;
-        GL.viewport(0, 0, windowWidth, windowHeight);
+        // GL.viewport(0, 0, windowWidth, windowHeight);
 
-        GL.clearColor(0.0, 0.0, 0.4, 0.0);
         GL.clear(GL.COLOR_BUFFER_BIT);
 
         GL.useProgram(ocdp2.glObjects.program.?);
@@ -103,10 +109,33 @@ pub fn main2() !void {
         // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
         GL.uniformMatrix4fv(ocdp2.glObjects.matrixId.?, 1, GL.FALSE, &ocdp2.glObjects.mvp.?[0][0]);
 
-        GL.bindVertexArray(ocdp2.glObjects.vao.?);
+        // GL.bindVertexArray(ocdp2.glObjects.vao.?);
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+        GL.enableVertexAttribArray(attributeLocation_vbo);
+        GL.enableVertexAttribArray(attributeLocation_color);
+
+        // 1st attribute buffer : vertices
+        GL.bindBuffer(GL.ARRAY_BUFFER, ocdp2.glObjects.vbo.?);
+        GL.vertexAttribPointer(attributeLocation_vbo, 3, GL.FLOAT, GL.FALSE, 0, null);
+
+        // 2nd attribute buffer : colors
+        GL.bindBuffer(GL.ARRAY_BUFFER, ocdp2.glObjects.colorBuffer.?);
+        GL.vertexAttribPointer(attributeLocation_color, 3, GL.FLOAT, GL.FALSE, 0, null);
+
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         // GL.drawElements(GL.TRIANGLES, 6, c.GL_UNSIGNED_INT, null);
-        GL.drawElements(GL.TRIANGLES, 3, c.GL_UNSIGNED_INT, null);
+        // GL.drawElements(GL.TRIANGLES, 3, c.GL_UNSIGNED_INT, null);
+        // const maxIndicesCount = @as(usize, @intCast(std.math.maxInt(GL._sizei)));
+        // const indicesLengthOrPanic: GL._sizei = if (ocdp2.glObjects.shape.indices.len <= maxIndicesCount) @as(GL._sizei, @intCast(ocdp2.glObjects.shape.indices.len)) else std.debug.panic("shape.vertices.len too large", .{});
+        // GL.drawElements(GL.TRIANGLES, indicesLengthOrPanic, c.GL_UNSIGNED_INT, null);
+        // Draw the triangle !
+        GL.drawArrays(GL.TRIANGLES, 0, 12 * 3); // 12*3 indices starting at 0 -> 12 triangles -> 6 squares
+
+        GL.disableVertexAttribArray(attributeLocation_vbo);
+        GL.disableVertexAttribArray(attributeLocation_color);
 
         c.glfwSwapBuffers(window);
         c.glfwPollEvents();
@@ -115,8 +144,11 @@ pub fn main2() !void {
 
     // Cleanup
     GL.deleteBuffers(1, &ocdp2.glObjects.vbo.?);
-    GL.deleteVertexArrays(1, &ocdp2.glObjects.vao.?);
+    GL.deleteBuffers(1, &ocdp2.glObjects.colorBuffer.?);
+
     GL.deleteProgram(ocdp2.glObjects.program.?);
+
+    GL.deleteVertexArrays(1, &ocdp2.glObjects.vao.?);
 
     try ShaderUtils.assert.noGlError("cleanup");
 
