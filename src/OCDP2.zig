@@ -271,7 +271,7 @@ pub const OCDP2 = struct {
         const projection = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
 
         // View (camera) matrix
-        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
+        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, -3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
 
         // Model matrix
         const model = zm.identity();
