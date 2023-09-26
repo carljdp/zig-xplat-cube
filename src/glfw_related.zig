@@ -90,6 +90,11 @@ pub fn main2() !void {
 
     GL.clearColor(0.0, 0.0, 0.4, 0.0);
 
+    // Enable depth test
+    GL.enable(GL.DEPTH_TEST);
+    // Accept fragment if it closer to the camera than the former one
+    GL.depthFunc(GL.LESS);
+
     // Notice that the "1" here mathes the "location=1" in vertex shader
     const attributeLocation_color = 1;
     // Notice that the "0" here mathes the "location=0" in vertex shader
@@ -101,7 +106,8 @@ pub fn main2() !void {
         // _ = ratio;
         // GL.viewport(0, 0, windowWidth, windowHeight);
 
-        GL.clear(GL.COLOR_BUFFER_BIT);
+        // Clear the screen
+        GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
 
         GL.useProgram(ocdp2.glObjects.program.?);
 
