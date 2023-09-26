@@ -2,7 +2,7 @@
 const std = @import("std");
 const c = @import("c.zig");
 
-pub const GL = struct {
+pub const gl = struct {
 
     // Straight-through functions
 
@@ -276,7 +276,7 @@ pub const GL = struct {
     // pub const EXTENSIONS: c_int = c.GL_EXTENSIONS;
     pub const FALSE: c_int = c.GL_FALSE;
     // pub const FASTEST: c_int = c.GL_FASTEST;
-    // pub const FILL: c_int = c.GL_FILL;
+    pub const FILL: c_int = c.GL_FILL;
     // pub const FIRST_VERTEX_CONVENTION: c_int = c.GL_FIRST_VERTEX_CONVENTION;
     // pub const FIXED: c_int = c.GL_FIXED;
     // pub const FIXED_ONLY: c_int = c.GL_FIXED_ONLY;
@@ -328,7 +328,7 @@ pub const GL = struct {
     // pub const FRAMEBUFFER_UNDEFINED: c_int = c.GL_FRAMEBUFFER_UNDEFINED;
     // pub const FRAMEBUFFER_UNSUPPORTED: c_int = c.GL_FRAMEBUFFER_UNSUPPORTED;
     // pub const FRONT: c_int = c.GL_FRONT;
-    // pub const FRONT_AND_BACK: c_int = c.GL_FRONT_AND_BACK;
+    pub const FRONT_AND_BACK: c_int = c.GL_FRONT_AND_BACK;
     // pub const FRONT_FACE: c_int = c.GL_FRONT_FACE;
     // pub const FRONT_LEFT: c_int = c.GL_FRONT_LEFT;
     // pub const FRONT_RIGHT: c_int = c.GL_FRONT_RIGHT;
@@ -388,7 +388,7 @@ pub const GL = struct {
     // pub const LEFT: c_int = c.GL_LEFT;
     // pub const LEQUAL: c_int = c.GL_LEQUAL;
     pub const LESS: c_int = c.GL_LESS; // depthFunc()
-    // pub const LINE: c_int = c.GL_LINE;
+    pub const LINE: c_int = c.GL_LINE;
     // pub const LINEAR: c_int = c.GL_LINEAR;
     // pub const LINEAR_MIPMAP_LINEAR: c_int = c.GL_LINEAR_MIPMAP_LINEAR;
     // pub const LINEAR_MIPMAP_NEAREST: c_int = c.GL_LINEAR_MIPMAP_NEAREST;
@@ -956,7 +956,7 @@ pub const GL = struct {
     // pub const UNSIGNED_BYTE: c_int = c.GL_UNSIGNED_BYTE;
     // pub const UNSIGNED_BYTE_2_3_3_REV: c_int = c.GL_UNSIGNED_BYTE_2_3_3_REV;
     // pub const UNSIGNED_BYTE_3_3_2: c_int = c.GL_UNSIGNED_BYTE_3_3_2;
-    // pub const UNSIGNED_INT: c_int = c.GL_UNSIGNED_INT;
+    pub const UNSIGNED_INT: c_int = c.GL_UNSIGNED_INT;
     // pub const UNSIGNED_INT_10F_11F_11F_REV: c_int = c.GL_UNSIGNED_INT_10F_11F_11F_REV;
     // pub const UNSIGNED_INT_10_10_10_2: c_int = c.GL_UNSIGNED_INT_10_10_10_2;
     // pub const UNSIGNED_INT_24_8: c_int = c.GL_UNSIGNED_INT_24_8;

@@ -5,23 +5,10 @@ const std = @import("std");
 const zm = @import("zmath");
 
 const c = @import("c.zig");
-const TT = @import("TT.zig").TT;
-const XT = @import("TT.zig").ExplicitTypes;
+const gl = @import("cImportRemap.zig").gl;
 
-const expect = std.testing.expect;
-const print = std.debug.print;
-const panic = std.debug.panic;
-
-// ChatGPT 'plan' (imported)
-const ShaderUtils = @import("OCDP.zig").ShaderUtils;
-const GL = @import("cImportRemap.zig").GL;
-const _OCDP_ = @import("OCDP.zig");
 const OCDP2 = @import("OCDP2.zig").OCDP2;
-const OCDP = _OCDP_.OCDP;
-const ShaderProgramId = _OCDP_.MyGl.ProgramId;
-const BasicShape = _OCDP_.BasicShape;
-var cube: BasicShape = _OCDP_.cube;
-var triangle: BasicShape = _OCDP_.triangle;
+const ShaderUtils = @import("OCDP2.zig").ShaderUtils;
 
 //=============================================================================
 pub fn main2() !void {
@@ -46,8 +33,8 @@ pub fn main2() !void {
     c.glfwWindowHint(c.GLFW_CONTEXT_VERSION_MINOR, 1);
 
     c.glfwWindowHint(c.GLFW_OPENGL_PROFILE, c.GLFW_OPENGL_CORE_PROFILE);
-    c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, GL.TRUE);
-    c.glfwWindowHint(c.GLFW_RESIZABLE, GL.FALSE);
+    c.glfwWindowHint(c.GLFW_OPENGL_FORWARD_COMPAT, gl.TRUE);
+    c.glfwWindowHint(c.GLFW_RESIZABLE, gl.FALSE);
     // c.glfwWindowHint(c.GLFW_OPENGL_DEBUG_CONTEXT, c.GL_TRUE);
 
     const windowWidth: c_int = 640;
@@ -75,98 +62,32 @@ pub fn main2() !void {
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // get version info
-    const renderer = GL.getString(GL.RENDERER); // get renderer string
-    const version = GL.getString(GL.VERSION); // version as a string
+    const renderer = gl.getString(gl.RENDERER); // get renderer string
+    const version = gl.getString(gl.VERSION); // version as a string
     std.debug.print("[_GL_] Rederer: {s}\n", .{renderer});
     std.debug.print("[_GL_] Version: {s}\n", .{version});
 
     c.glfwSwapInterval(1);
+    gl.clearColor(0.0, 0.0, 0.4, 0.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LESS);
 
     var ocdp2 = OCDP2.onStack(null);
     try ocdp2.init();
     defer ocdp2.deinit();
 
+    // setup before render loop
     try ocdp2.setup();
 
-    GL.clearColor(0.0, 0.0, 0.4, 0.0);
+    // render loop
+    try ocdp2.render(window);
 
-    // Enable depth test
-    GL.enable(GL.DEPTH_TEST);
-    // Accept fragment if it closer to the camera than the former one
-    GL.depthFunc(GL.LESS);
-
-    // Notice that the "1" here mathes the "location=1" in vertex shader
-    const attributeLocation_color = 1;
-    // Notice that the "0" here mathes the "location=0" in vertex shader
-    const attributeLocation_vbo = 0;
-
-    while (c.glfwWindowShouldClose(window) == GL.FALSE) {
-        // c.glfwGetFramebufferSize(window, @constCast(&windowWidth), @constCast(&windowHeight));
-        // var ratio = @as(c.float_t, @floatFromInt(windowWidth)) / @as(c.float_t, @floatFromInt(windowHeight));
-        // _ = ratio;
-        // GL.viewport(0, 0, windowWidth, windowHeight);
-
-        // Clear the screen
-        GL.clear(GL.COLOR_BUFFER_BIT | GL.DEPTH_BUFFER_BIT);
-
-        GL.useProgram(ocdp2.glObjects.program.?);
-
-        // Send our transformation to the currently bound shader, in the "MVP" uniform
-        // This is done in the main loop since each model will have a different MVP matrix (At least for the M part)
-        GL.uniformMatrix4fv(ocdp2.glObjects.matrixId.?, 1, GL.FALSE, &ocdp2.glObjects.mvp.?[0][0]);
-
-        // GL.bindVertexArray(ocdp2.glObjects.vao.?);
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        GL.enableVertexAttribArray(attributeLocation_vbo);
-        GL.enableVertexAttribArray(attributeLocation_color);
-
-        // 1st attribute buffer : vertices
-        GL.bindBuffer(GL.ARRAY_BUFFER, ocdp2.glObjects.vbo.?);
-        GL.vertexAttribPointer(attributeLocation_vbo, 3, GL.FLOAT, GL.FALSE, 0, null);
-
-        // 2nd attribute buffer : colors
-        GL.bindBuffer(GL.ARRAY_BUFFER, ocdp2.glObjects.colorBuffer.?);
-        GL.vertexAttribPointer(attributeLocation_color, 3, GL.FLOAT, GL.FALSE, 0, null);
-
-        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-        // GL.drawElements(GL.TRIANGLES, 6, c.GL_UNSIGNED_INT, null);
-        // GL.drawElements(GL.TRIANGLES, 3, c.GL_UNSIGNED_INT, null);
-        // const maxIndicesCount = @as(usize, @intCast(std.math.maxInt(GL._sizei)));
-        // const indicesLengthOrPanic: GL._sizei = if (ocdp2.glObjects.shape.indices.len <= maxIndicesCount) @as(GL._sizei, @intCast(ocdp2.glObjects.shape.indices.len)) else std.debug.panic("shape.vertices.len too large", .{});
-        // GL.drawElements(GL.TRIANGLES, indicesLengthOrPanic, c.GL_UNSIGNED_INT, null);
-        // Draw the triangle !
-        GL.drawArrays(GL.TRIANGLES, 0, 12 * 3); // 12*3 indices starting at 0 -> 12 triangles -> 6 squares
-
-        GL.disableVertexAttribArray(attributeLocation_vbo);
-        GL.disableVertexAttribArray(attributeLocation_color);
-
-        c.glfwSwapBuffers(window);
-        c.glfwPollEvents();
-    }
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    // Cleanup
-    GL.deleteBuffers(1, &ocdp2.glObjects.vbo.?);
-    GL.deleteBuffers(1, &ocdp2.glObjects.colorBuffer.?);
-
-    GL.deleteProgram(ocdp2.glObjects.program.?);
-
-    GL.deleteVertexArrays(1, &ocdp2.glObjects.vao.?);
-
-    try ShaderUtils.assert.noGlError("cleanup");
-
-    // Clean up glfw already handled via defer
-
-    //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // cleanup happens in defer'ed deinit()
     return void{};
 }
 
 //=============================================================================
 
-// most of glfw's functions use a callback for error handling
 fn errorCallback(err: c_int, description: [*c]const u8) callconv(.C) void {
     _ = err;
     _ = c.printf("Error: %s\n", description);
@@ -175,21 +96,11 @@ fn errorCallback(err: c_int, description: [*c]const u8) callconv(.C) void {
     unreachable;
 }
 
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-// GLFW key_callback
-// supposed to have the form:
-// GLFWkeyfun = ?*const fn (?*GLFWwindow, c_int, c_int, c_int, c_int) callconv(.C) void;
 fn keyCallback(glfwWindow: ?*c.GLFWwindow, key: c_int, scancode: c_int, action: c_int, mods: c_int) callconv(.C) void {
-    // _ = glfwWindow;
-    // _ = key;
     _ = scancode;
-    // _ = action;
     _ = mods;
 
     if (key == c.GLFW_KEY_ESCAPE and action == c.GLFW_PRESS) {
         c.glfwSetWindowShouldClose(glfwWindow, c.GLFW_TRUE);
     }
 }
-
-//- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
