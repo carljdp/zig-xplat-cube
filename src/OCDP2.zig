@@ -372,7 +372,7 @@ pub const OCDP2 = struct {
         const projection = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
 
         // View (camera) matrix
-        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, -3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
+        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
 
         // Model matrix
         const model = zm.identity();
@@ -386,7 +386,7 @@ pub const OCDP2 = struct {
         //-----------------------------------------------------------------------------
     }
 
-    pub fn render(self: *OCDP2, window: ?*c.GLFWwindow) !void {
+    pub fn render(self: *OCDP2, window: *c.GLFWwindow) !void {
         //
 
         const attributeLocation_color = 1; // "location=1" in vertex shader
@@ -406,7 +406,7 @@ pub const OCDP2 = struct {
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
             // Change polygon mode to wireframe
-            gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
+            // gl.polygonMode(gl.FRONT_AND_BACK, gl.LINE);
 
             // bind a vertex array object
             gl.bindVertexArray(self.context.vao.?);
