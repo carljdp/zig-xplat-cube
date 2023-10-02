@@ -1,6 +1,6 @@
 // generics
 const std = @import("std");
-const C = @import("c.zig");
+const C = @import("c/imports.zig");
 
 pub const ExplicitActions = struct {
     pub fn unwrapOrPanic(thing: anytype) @typeInfo(@TypeOf(thing)).Optional.child {

@@ -1,6 +1,5 @@
 // generics
 const std = @import("std");
-const c = @import("c.zig");
 
 // 3rd party
 const zm = @import("zmath");
@@ -15,7 +14,9 @@ const FsUtils = @import("build_helpers.zig").CFS;
 
 //=============================================================================
 // DEPENDENCIES
-const gl = @import("cImportRemap.zig").gl;
+const gl = @import("c/OpenGL.zig").remapped();
+const glfw = @import("c/GLFW.zig").remapped();
+
 const MyGl = @import("OCDP.zig").MyGl;
 const BasicShape = @import("OCDP.zig").BasicShape;
 const MatricesSuppliedIn = @import("OCDP.zig").MatricesSuppliedIn;
@@ -39,15 +40,15 @@ pub const ShaderUtils = struct {
         pub fn shaderCompiled(shader: MyGl.ShaderId) !void {
             var status: i32 = undefined;
             gl.getShaderiv(shader, gl.COMPILE_STATUS, &status);
-            if (status == gl.TRUE) return void{};
+            if (status == gl.True) return void{};
 
             // ..else log it, and return an error
 
             // TODO: look at programLinked() below, to remove const maxLength = 512;
 
             const maxLength = 512;
-            var string: [maxLength]gl._char = undefined;
-            var stringLength: gl._sizei = undefined;
+            var string: [maxLength]gl.Char = undefined;
+            var stringLength: gl.Sizei = undefined;
             gl.getShaderInfoLog(shader, maxLength, &stringLength, &string);
             std.debug.print("Failed to compile shader. GL Info Log:\n{s}\n", .{string[0..string.len]});
             return error.GL_ShaderCompile_Failed;
@@ -55,24 +56,24 @@ pub const ShaderUtils = struct {
 
         /// Error if shader program linking failed.
         pub fn programLinked(program: MyGl.ProgramId) !void {
-            var status: gl._int = undefined;
+            var status: gl.Int = undefined;
             gl.getProgramiv(program, gl.LINK_STATUS, &status);
-            if (status == gl.TRUE) return void{};
+            if (status == gl.True) return void{};
 
             // ..else log it, and return an error
 
-            var infoLogLength: gl._int = undefined;
+            var infoLogLength: gl.Int = undefined;
             gl.getProgramiv(program, gl.INFO_LOG_LENGTH, &infoLogLength);
             const allocator: std.mem.Allocator = std.heap.page_allocator;
 
             // '+1' from tutorial, maybe for null termination?
             // - should we add null manually?
             const _infoLength: usize = @intCast(infoLogLength);
-            var programErrorMessage = try allocator.alloc(gl._char, _infoLength + 1);
+            var programErrorMessage = try allocator.alloc(gl.Char, _infoLength + 1);
             defer allocator.free(programErrorMessage);
 
             // ## TODO ## should this not be .ptr instead of @ptrCast(&..) ? like we did with GL.bufferData() ?
-            var cCompatPtrToStringBuffer: [*c]gl._char = @ptrCast(&programErrorMessage);
+            var cCompatPtrToStringBuffer: [*c]gl.Char = @ptrCast(&programErrorMessage);
 
             gl.getProgramInfoLog(program, infoLogLength, null, cCompatPtrToStringBuffer);
             std.debug.print("Failed to link shader. GL Info Log:\n{s}\n", .{programErrorMessage[0..programErrorMessage.len]});
@@ -89,7 +90,7 @@ pub const ShaderUtils = struct {
             // - see: https://docs.gl/gl4/glGetError
 
             // fetch and clear queued error
-            const status: gl._enum = gl.getError();
+            const status: gl.Enum = gl.getError();
             if (status == gl.NO_ERROR) return void{};
             // If result == GL_NO_ERROR:
             // - there has been no detectable error since the last call to glGetError,
@@ -122,14 +123,14 @@ pub const ShaderUtils = struct {
         // then it doesn't need to be in null terminated c-style
 
         // safe-cast usize of source.len to GLint
-        var validLength: gl._int = undefined;
-        if (source.len > std.math.maxInt(gl._int)) {
+        var validLength: gl.Int = undefined;
+        if (source.len > std.math.maxInt(gl.Int)) {
             std.debug.print("source.len too large", .{});
             return error.GL_compileShader_SourceTooLong;
         } else validLength = @intCast(source.len);
 
         // create gl shader, returns Id (ref) of object, 0 if error
-        const shaderId: MyGl.ShaderId = gl.createShader(@as(gl._uint, @intFromEnum(shaderType)));
+        const shaderId: MyGl.ShaderId = gl.createShader(@as(gl.Uint, @intFromEnum(shaderType)));
         if (shaderId == 0) {
             std.debug.print("Failed to create {s} shader object.", .{@tagName(shaderType)});
             return error.GL_compileShader_CreateShaderFailed;
@@ -137,8 +138,8 @@ pub const ShaderUtils = struct {
 
         // set shader source on shader object
         const arraySize = 1;
-        const arrayOfStrings = [arraySize][*c]const gl._char{source.ptr};
-        const arrayOfLengths = [arraySize]gl._int{validLength};
+        const arrayOfStrings = [arraySize][*c]const gl.Char{source.ptr};
+        const arrayOfLengths = [arraySize]gl.Int{validLength};
         gl.shaderSource(shaderId, arraySize, &arrayOfStrings, &arrayOfLengths);
 
         // compile shader source
@@ -152,9 +153,9 @@ pub const ShaderUtils = struct {
     /// - TODO: make arg typea local / not-external
     /// - kind: `gl.ARRAY_BUFFER`, `gl.ELEMENT_ARRAY_BUFFER`, etc
     /// - mark: text tag for debug printing
-    pub fn generateAndBindBufferAs(bufferType: gl._enum, comptime mark: []const u8) !gl._uint {
+    pub fn generateAndBindBufferAs(bufferType: gl.Enum, comptime mark: []const u8) !gl.Uint {
         //
-        var buffer: gl._uint = undefined;
+        var buffer: gl.Uint = undefined;
         const count = 1;
         gl.genBuffers(count, &buffer);
         try ShaderUtils.assert.noGlError(mark ++ "_genBuffers");
@@ -166,9 +167,9 @@ pub const ShaderUtils = struct {
 
         return buffer;
     }
-    pub fn generateAndBindVertexArray(comptime mark: []const u8) !gl._uint {
+    pub fn generateAndBindVertexArray(comptime mark: []const u8) !gl.Uint {
         //
-        var vertexArray: gl._uint = undefined;
+        var vertexArray: gl.Uint = undefined;
         gl.genVertexArrays(1, &vertexArray);
         try ShaderUtils.assert.noGlError(mark ++ "_genVertexArrays");
 
@@ -189,14 +190,14 @@ pub const OCDP2Options = struct {
 };
 
 pub const GlContext = struct {
-    vertexShader: ?gl._uint = null, // vertex shader id
-    fragmentShader: ?gl._uint = null, // fragment shader id
-    program: ?gl._uint = null, // shader program id
-    vao: ?gl._uint = null, // vertex array object
-    vbo: ?gl._uint = null, // vertex buffer object
-    ebo: ?gl._uint = null, // element buffer object
-    colorBuffer: ?gl._uint = null, // color buffer
-    mvpLocation: ?gl._int = null, // matrix id ?
+    vertexShader: ?gl.Uint = null, // vertex shader id
+    fragmentShader: ?gl.Uint = null, // fragment shader id
+    program: ?gl.Uint = null, // shader program id
+    vao: ?gl.Uint = null, // vertex array object
+    vbo: ?gl.Uint = null, // vertex buffer object
+    ebo: ?gl.Uint = null, // element buffer object
+    colorBuffer: ?gl.Uint = null, // color buffer
+    mvpLocation: ?gl.Int = null, // matrix id ?
     mvpData: ?zm.Mat = null, // model-view-projection matrix
     shape: BasicShape = testShape,
 };
@@ -348,7 +349,7 @@ pub const OCDP2 = struct {
         // Type: ELEMENT_ARRAY_BUFFER (no need for bind or vertexAttribPointer)
 
         self.context.ebo = try ShaderUtils.generateAndBindBufferAs(gl.ELEMENT_ARRAY_BUFFER, "EBO");
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, testShape.indicesLenAs(gl._sizeiptr), testShape.indices.ptr, gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, testShape.indicesLenAs(gl.Sizeiptr), testShape.indices.ptr, gl.STATIC_DRAW);
         try ShaderUtils.assert.noGlError("EBO_data");
 
         // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -386,7 +387,7 @@ pub const OCDP2 = struct {
         //-----------------------------------------------------------------------------
     }
 
-    pub fn render(self: *OCDP2, window: *c.GLFWwindow) !void {
+    pub fn render(self: *OCDP2, window: *glfw.Window) !void {
         //
 
         const attributeLocation_color = 1; // "location=1" in vertex shader
@@ -394,13 +395,13 @@ pub const OCDP2 = struct {
         // TODO: locations like above to be handles/stored in some similar way as below mvp
         const uniformLocation_mvp = self.context.mvpLocation.?;
 
-        while (c.glfwWindowShouldClose(window) == gl.FALSE) {
+        while (!glfw.windowShouldClose(window)) {
             //
 
             // which shader program to use
             gl.useProgram(self.context.program.?);
             // set it's uniform(s)
-            gl.uniformMatrix4fv(uniformLocation_mvp, 1, gl.FALSE, &self.context.mvpData.?[0][0]);
+            gl.uniformMatrix4fv(uniformLocation_mvp, 1, gl.False, &self.context.mvpData.?[0][0]);
 
             // clear the screen
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -416,16 +417,16 @@ pub const OCDP2 = struct {
 
             // Vertex data (bind and set attribute data)
             gl.bindBuffer(gl.ARRAY_BUFFER, self.context.vbo.?);
-            gl.vertexAttribPointer(attributeLocation_vbo, 3, gl.FLOAT, gl.FALSE, 0, null);
+            gl.vertexAttribPointer(attributeLocation_vbo, 3, gl.FLOAT, gl.False, 0, null);
 
             // Color data (bind and set attribute data)
             gl.bindBuffer(gl.ARRAY_BUFFER, self.context.colorBuffer.?);
-            gl.vertexAttribPointer(attributeLocation_color, 3, gl.FLOAT, gl.FALSE, 0, null);
+            gl.vertexAttribPointer(attributeLocation_color, 3, gl.FLOAT, gl.False, 0, null);
 
             // EBO  (elements) is already bound to the VAO
             // - and of type ELEMENT_ARRAY_BUFFER
             // - thus no need for bind or vertexAttribPointer like above
-            gl.drawElements(gl.TRIANGLES, self.context.shape.indicesLenAs(gl._sizei), gl.UNSIGNED_INT, null);
+            gl.drawElements(gl.TRIANGLES, self.context.shape.indicesLenAs(gl.Sizei), gl.UNSIGNED_INT, null);
 
             // not strictly necessary in 'modern', but convention /  good practice
             gl.disableVertexAttribArray(attributeLocation_vbo);
@@ -437,8 +438,8 @@ pub const OCDP2 = struct {
             // Revert polygon mode back to fill if you wish to draw other objects normally
             gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
 
-            c.glfwSwapBuffers(window);
-            c.glfwPollEvents();
+            glfw.swapBuffers(window);
+            glfw.pollEvents();
 
             try ShaderUtils.assert.noGlError("render");
         }

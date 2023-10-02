@@ -1,8 +1,8 @@
 // generics
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c/imports.zig");
 
-const gl = @import("cImportRemap.zig").gl;
+const gl = @import("c/OpenGL.zig").remapped();
 
 // types debugging
 const TT = @import("TT.zig").TT;
@@ -19,49 +19,49 @@ const Type = std.builtin.Type;
 //------------------------------------------------------------------------------
 
 pub const MatricesSuppliedIn = struct {
-    pub const rowMajorOrder: gl._boolean = gl.TRUE;
-    pub const colMajorOrder: gl._boolean = gl.FALSE;
+    pub const rowMajorOrder: gl.Boolean = gl.TRUE;
+    pub const colMajorOrder: gl.Boolean = gl.FALSE;
 };
 
 //------------------------------------------------------------------------------
 
 pub const BasicShape = struct {
     vertices: []const f32,
-    indices: []const gl._uint,
+    indices: []const gl.Uint,
     colors: []const f32,
 
-    pub fn verticesLen(self: *const BasicShape) gl._sizeiptr {
-        const maxValue = @as(usize, @intCast(std.math.maxInt(gl._sizeiptr)));
-        const length = if (self.vertices.len <= maxValue) @as(gl._sizeiptr, @intCast(self.vertices.len)) else std.debug.panic("shape.vertices.len too large", .{});
+    pub fn verticesLen(self: *const BasicShape) gl.Sizeiptr {
+        const maxValue = @as(usize, @intCast(std.math.maxInt(gl.Sizeiptr)));
+        const length = if (self.vertices.len <= maxValue) @as(gl.Sizeiptr, @intCast(self.vertices.len)) else std.debug.panic("shape.vertices.len too large", .{});
 
         // * size of vertexComponent's type i.e. f32
-        const byteCount: gl._sizeiptr = length * @sizeOf(f32);
+        const byteCount: gl.Sizeiptr = length * @sizeOf(f32);
         if (byteCount == 0) std.debug.panic("verticesDataStoreSize is 0\n", .{});
 
         return byteCount;
     }
 
-    /// Cast length to correct type (gl._sizei) to be passed to `gl.drawElements()` as `count` arg.
-    /// - T: `gl._sizei` for drawElements(), `gl._sizeiptr` for bufferData()
+    /// Cast length to correct type (gl.Sizei) to be passed to `gl.drawElements()` as `count` arg.
+    /// - T: `gl.Sizei` for drawElements(), `gl.Sizeiptr` for bufferData()
     pub fn indicesLenAs(self: *const BasicShape, comptime T: anytype) T {
-        if (T != gl._sizei and T != gl._sizeiptr) std.debug.panic("Unexpected type T", .{});
+        if (T != gl.Sizei and T != gl.Sizeiptr) std.debug.panic("Unexpected type T", .{});
 
         const maxValue = @as(usize, @intCast(std.math.maxInt(T)));
         const length = if (self.indices.len <= maxValue) @as(T, @intCast(self.indices.len)) else std.debug.panic("shape.indices.len too large", .{});
 
-        // * size of index's type i.e. GL._uint
-        const byteCount: T = length * @sizeOf(gl._uint);
+        // * size of index's type i.e. GL.Uint
+        const byteCount: T = length * @sizeOf(gl.Uint);
         if (byteCount == 0) std.debug.panic("indicesDataStoreSize is 0\n", .{});
 
         return byteCount;
     }
 
-    pub fn colorsLen(self: *const BasicShape) gl._sizeiptr {
-        const maxValue = @as(usize, @intCast(std.math.maxInt(gl._sizeiptr)));
-        const length = if (self.colors.len <= maxValue) @as(gl._sizeiptr, @intCast(self.colors.len)) else std.debug.panic("shape.colors.len too large", .{});
+    pub fn colorsLen(self: *const BasicShape) gl.Sizeiptr {
+        const maxValue = @as(usize, @intCast(std.math.maxInt(gl.Sizeiptr)));
+        const length = if (self.colors.len <= maxValue) @as(gl.Sizeiptr, @intCast(self.colors.len)) else std.debug.panic("shape.colors.len too large", .{});
 
         // * size of colBuff's type i.e. f32
-        const byteCount: gl._sizeiptr = length * @sizeOf(f32);
+        const byteCount: gl.Sizeiptr = length * @sizeOf(f32);
         if (byteCount == 0) std.debug.panic("colBuffDataStoreSize is 0\n", .{});
 
         return byteCount;
@@ -109,7 +109,7 @@ pub const cube = BasicShape{
     },
 
     // Example indices for a cube
-    .indices = &[_]gl._uint{
+    .indices = &[_]gl.Uint{
         0,  1,  2,  3,  4,  5,
         6,  7,  8,  9,  10, 11,
         12, 13, 14, 15, 16, 17,
@@ -167,7 +167,7 @@ pub const triangle = BasicShape{
     },
 
     // Example indices for a cube
-    .indices = &[_]gl._uint{
+    .indices = &[_]gl.Uint{
         0, 1, 3,
         1, 2, 3,
     },
@@ -195,7 +195,7 @@ pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
         };
 
         const Object = struct {
-            const Name = gl._uint;
+            const Name = gl.Uint;
 
             const Shaders = struct {};
             const VertexArray = struct {};
@@ -226,10 +226,10 @@ pub fn OpenGlTypes(comptime majorVer: u8, comptime minorVer: u8) type {
         // as is  / unsorted: `````````````````````````````````````````````
 
         // generic / internal types
-        const ObjectId = gl._uint;
+        const ObjectId = gl.Uint;
 
         // shader related types
-        pub const ShaderTypeTag = enum(gl._enum) { Vertex = gl.VERTEX_SHADER, Fragment = gl.FRAGMENT_SHADER };
+        pub const ShaderTypeTag = enum(gl.Enum) { Vertex = gl.VERTEX_SHADER, Fragment = gl.FRAGMENT_SHADER };
         pub const ShaderId = ObjectId;
         pub const ProgramId = ObjectId;
 

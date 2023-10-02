@@ -1,4 +1,3 @@
-// originally from https://github.dev/andrewrk/tetris/blob/master/src/tetris.c
 pub usingnamespace @cImport({
     // I dont yet know what these are for .. ?
     @cInclude("stdio.h");
