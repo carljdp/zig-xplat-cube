@@ -2112,6 +2112,42 @@ fn mulRetType(comptime Ta: type, comptime Tb: type) type {
     @compileError("zmath.mul() not implemented for types: " ++ @typeName(Ta) ++ @typeName(Tb));
 }
 
+pub fn add(a: anytype, b: anytype) @TypeOf(a, b) {
+    const Ta = @TypeOf(a);
+    const Tb = @TypeOf(b);
+
+    if (Ta == Vec and Tb == Vec) {
+        return Vec{ a[0] + b[0], a[1] + b[1], a[2] + b[2], a[3] + b[3] };
+    } else if (Ta == Mat and Tb == Mat) {
+        return Mat{
+            add(a[0], b[0]),
+            add(a[1], b[1]),
+            add(a[2], b[2]),
+            add(a[3], b[3]),
+        };
+    } else {
+        @compileError("zmath.add() not implemented for types: " ++ @typeName(Ta) ++ ", " ++ @typeName(Tb));
+    }
+}
+
+pub fn sub(a: anytype, b: anytype) @TypeOf(a, b) {
+    const Ta = @TypeOf(a);
+    const Tb = @TypeOf(b);
+
+    if (Ta == Vec and Tb == Vec) {
+        return Vec{ a[0] - b[0], a[1] - b[1], a[2] - b[2], a[3] - b[3] };
+    } else if (Ta == Mat and Tb == Mat) {
+        return Mat{
+            sub(a[0], b[0]),
+            sub(a[1], b[1]),
+            sub(a[2], b[2]),
+            sub(a[3], b[3]),
+        };
+    } else {
+        @compileError("zmath.sub() not implemented for types: " ++ @typeName(Ta) ++ ", " ++ @typeName(Tb));
+    }
+}
+
 pub fn mul(a: anytype, b: anytype) mulRetType(@TypeOf(a), @TypeOf(b)) {
     const Ta = @TypeOf(a);
     const Tb = @TypeOf(b);

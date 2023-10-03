@@ -398,12 +398,9 @@ pub const OCDP2 = struct {
         var windowSizeY: glfw.Int = undefined;
 
         var position: zm.Vec = zm.f32x4(0.0, 0.0, 5.0, 0.0);
-        _ = position;
         var direction: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
         var right: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
-        _ = right;
         var up: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
-        _ = up;
 
         // horizontal angle : toward -Z
         var horizontalAngle: f32 = 3.14;
@@ -413,8 +410,7 @@ pub const OCDP2 = struct {
         var initialFoV: f32 = 45.0;
         var currentFoV: f32 = initialFoV;
 
-        // var speed: f32 = 3.0;
-        // _ = speed; // 3 units / second
+        var speed: f32 = 3.0; // 3 units / second
         var mouseSpeed: f32 = 0.005;
 
         var currentTime: f64 = glfw.getTime();
@@ -451,36 +447,56 @@ pub const OCDP2 = struct {
             verticalAngle += @as(f32, @floatCast(mouseSpeed * deltaTime * ((@as(f32, @floatFromInt(windowSizeY)) / 2) - posYCurrent)));
 
             // Direction : Spherical coordinates to Cartesian coordinates conversion
-            direction[0] = std.math.cos(verticalAngle) * std.math.sin(horizontalAngle);
+            const cosVerticalAngle = std.math.cos(verticalAngle);
+            direction[0] = cosVerticalAngle * std.math.sin(horizontalAngle);
             direction[1] = std.math.sin(verticalAngle);
-            direction[2] = std.math.cos(verticalAngle) * std.math.cos(horizontalAngle);
+            direction[2] = cosVerticalAngle * std.math.cos(horizontalAngle);
 
-            // // Right vector
-            // right = zm.vec3(
-            //     sin(horizontalAngle - 3.14f / 2.0f),
-            //     0,
-            //     cos(horizontalAngle - 3.14f / 2.0f),
-            // );
+            // Right vector
+            const horizontalAngleLessHalfPi = horizontalAngle - 3.14 / 2.0;
+            right[0] = std.math.sin(horizontalAngleLessHalfPi);
+            right[1] = 0;
+            right[2] = std.math.cos(horizontalAngleLessHalfPi);
 
-            // // Up vector : perpendicular to both direction and right
-            // up = zm.cross(right, direction);
+            // Up vector : perpendicular to both direction and right
+            up = zm.cross3(right, direction);
 
-            // // Move forward
-            // if (glfw.getKey(glfw.KEY_UP) == glfw.PRESS) {
-            //     position += direction * deltaTime * speed;
-            // }
-            // // Move backward
-            // if (glfw.getKey(glfw.KEY_DOWN) == glfw.PRESS) {
-            //     position -= direction * deltaTime * speed;
-            // }
-            // // Strafe right
-            // if (glfw.getKey(glfw.KEY_RIGHT) == glfw.PRESS) {
-            //     position += right * deltaTime * speed;
-            // }
-            // // Strafe left
-            // if (glfw.getKey(glfw.KEY_LEFT) == glfw.PRESS) {
-            //     position -= right * deltaTime * speed;
-            // }
+            // TODO: use @vectors
+
+            const deltaTimeSpeed = deltaTime * speed;
+            const directionScaled: zm.Vec = zm.f32x4(
+                direction[0] * deltaTimeSpeed,
+                direction[1] * deltaTimeSpeed,
+                direction[2] * deltaTimeSpeed,
+                0.0,
+            );
+            const rightScaled: zm.Vec = zm.f32x4(
+                right[0] * deltaTimeSpeed,
+                right[1] * deltaTimeSpeed,
+                right[2] * deltaTimeSpeed,
+                0.0,
+            );
+
+            // Move forward
+            if (glfw.getKey(windowPtr, glfw.KEY_UP) == glfw.PRESS) {
+                position = zm.add(position, directionScaled);
+                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+            }
+            // Move backward
+            if (glfw.getKey(windowPtr, glfw.KEY_DOWN) == glfw.PRESS) {
+                position = zm.sub(position, directionScaled);
+                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+            }
+            // Strafe right
+            if (glfw.getKey(windowPtr, glfw.KEY_RIGHT) == glfw.PRESS) {
+                position = zm.add(position, rightScaled);
+                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+            }
+            // Strafe left
+            if (glfw.getKey(windowPtr, glfw.KEY_LEFT) == glfw.PRESS) {
+                position = zm.sub(position, rightScaled);
+                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+            }
 
             // ## TEST ## To see if we can get scroll event data ..
             if (glfw.getScroll()) |scroll| {
