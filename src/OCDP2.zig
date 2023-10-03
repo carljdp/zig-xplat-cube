@@ -365,38 +365,130 @@ pub const OCDP2 = struct {
         // unbind VBO & VAO
         gl.bindBuffer(gl.ARRAY_BUFFER, 0);
         gl.bindVertexArray(0);
+    }
+
+    pub fn render(self: *OCDP2, windowPtr: *glfw.Window) !void {
+        //
 
         //-----------------------------------------------------------------------------
         // Create matrices
 
         // Projection matrix
-        const projection = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
+        const projection: zm.Mat = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
 
         // View (camera) matrix
-        const view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
+        const view: zm.Mat = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
 
         // Model matrix
-        const model = zm.identity();
+        const model: zm.Mat = zm.identity();
 
         // Multiply matrices
         const mv = zm.mul(model, view);
         self.context.mvpData = zm.mul(mv, projection);
-
         self.context.mvpLocation = gl.getUniformLocation(self.context.program.?, "MVP");
 
         //-----------------------------------------------------------------------------
-    }
-
-    pub fn render(self: *OCDP2, window: *glfw.Window) !void {
-        //
 
         const attributeLocation_color = 1; // "location=1" in vertex shader
         const attributeLocation_vbo = 0; // "location=0" in vertex shader
         // TODO: locations like above to be handles/stored in some similar way as below mvp
         const uniformLocation_mvp = self.context.mvpLocation.?;
 
-        while (!glfw.windowShouldClose(window)) {
+        var windowSizeX: glfw.Int = undefined;
+        var windowSizeY: glfw.Int = undefined;
+
+        var position: zm.Vec = zm.f32x4(0.0, 0.0, 5.0, 0.0);
+        _ = position;
+        var direction: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+        var right: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+        _ = right;
+        var up: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+        _ = up;
+
+        // horizontal angle : toward -Z
+        var horizontalAngle: f32 = 3.14;
+        // vertical angle : 0, look at the horizon
+        var verticalAngle: f32 = 0.0;
+        // Initial Field of View
+        var initialFoV: f32 = 45.0;
+        var currentFoV: f32 = initialFoV;
+
+        // var speed: f32 = 3.0;
+        // _ = speed; // 3 units / second
+        var mouseSpeed: f32 = 0.005;
+
+        var currentTime: f64 = glfw.getTime();
+        var previousTime: f64 = currentTime;
+        var deltaTime: f32 = @as(f32, @floatCast(currentTime - previousTime));
+
+        var posXCurrent: f64 = 0.0;
+        var posYCurrent: f64 = 0.0;
+        var posXPrevious: f64 = 0.0;
+        var posYPrevious: f64 = 0.0;
+        var posXDelta: f64 = posXCurrent - posXPrevious;
+        var posYDelta: f64 = posYCurrent - posYPrevious;
+
+        glfw.setScrollCallback(windowPtr, glfw.defaultFn.scrollCallback);
+
+        while (!glfw.windowShouldClose(windowPtr)) {
             //
+            currentTime = glfw.getTime();
+            deltaTime = @as(f32, @floatCast(currentTime - previousTime));
+            previousTime = currentTime;
+
+            glfw.getWindowSize(windowPtr, &windowSizeX, &windowSizeY);
+
+            glfw.getCursorPos(windowPtr, &posXCurrent, &posYCurrent);
+            glfw.setCursorPos(windowPtr, @as(f64, @floatFromInt(windowSizeX)) / 2, @as(f64, @floatFromInt(windowSizeY)) / 2);
+            posXDelta = posXCurrent - posXPrevious;
+            posYDelta = posYCurrent - posYPrevious;
+            posXPrevious = posXCurrent;
+            posYPrevious = posYCurrent;
+            if (@abs(posXDelta) > 2.0) std.debug.print("pos X delta: {any}\n", .{posXDelta});
+            if (@abs(posYDelta) > 2.0) std.debug.print("pos Y delta: {any}\n", .{posYDelta});
+
+            horizontalAngle += @as(f32, @floatCast(mouseSpeed * deltaTime * ((@as(f32, @floatFromInt(windowSizeX)) / 2) - posXCurrent)));
+            verticalAngle += @as(f32, @floatCast(mouseSpeed * deltaTime * ((@as(f32, @floatFromInt(windowSizeY)) / 2) - posYCurrent)));
+
+            // Direction : Spherical coordinates to Cartesian coordinates conversion
+            direction[0] = std.math.cos(verticalAngle) * std.math.sin(horizontalAngle);
+            direction[1] = std.math.sin(verticalAngle);
+            direction[2] = std.math.cos(verticalAngle) * std.math.cos(horizontalAngle);
+
+            // // Right vector
+            // right = zm.vec3(
+            //     sin(horizontalAngle - 3.14f / 2.0f),
+            //     0,
+            //     cos(horizontalAngle - 3.14f / 2.0f),
+            // );
+
+            // // Up vector : perpendicular to both direction and right
+            // up = zm.cross(right, direction);
+
+            // // Move forward
+            // if (glfw.getKey(glfw.KEY_UP) == glfw.PRESS) {
+            //     position += direction * deltaTime * speed;
+            // }
+            // // Move backward
+            // if (glfw.getKey(glfw.KEY_DOWN) == glfw.PRESS) {
+            //     position -= direction * deltaTime * speed;
+            // }
+            // // Strafe right
+            // if (glfw.getKey(glfw.KEY_RIGHT) == glfw.PRESS) {
+            //     position += right * deltaTime * speed;
+            // }
+            // // Strafe left
+            // if (glfw.getKey(glfw.KEY_LEFT) == glfw.PRESS) {
+            //     position -= right * deltaTime * speed;
+            // }
+
+            // ## TEST ## To see if we can get scroll event data ..
+            if (glfw.getScroll()) |scroll| {
+                std.debug.print("scroll x offset: {any}\n", .{scroll.xOffset});
+                std.debug.print("scroll y offset: {any}\n", .{scroll.yOffset});
+
+                currentFoV = initialFoV - 5 * @as(f32, @floatCast(scroll.yOffset));
+            }
 
             // which shader program to use
             gl.useProgram(self.context.program.?);
@@ -438,7 +530,7 @@ pub const OCDP2 = struct {
             // Revert polygon mode back to fill if you wish to draw other objects normally
             gl.polygonMode(gl.FRONT_AND_BACK, gl.FILL);
 
-            glfw.swapBuffers(window);
+            glfw.swapBuffers(windowPtr);
             glfw.pollEvents();
 
             try ShaderUtils.assert.noGlError("render");

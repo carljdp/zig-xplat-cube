@@ -47,15 +47,33 @@ pub fn remapped() type {
         pub const PRESS: Int = c.GLFW_PRESS;
         pub const RESIZABLE: Int = c.GLFW_RESIZABLE;
         pub const SAMPLES: Int = c.GLFW_SAMPLES;
+        pub const KEY_UP: Int = c.GLFW_KEY_UP;
+        pub const KEY_DOWN: Int = c.GLFW_KEY_DOWN;
+        pub const KEY_LEFT: Int = c.GLFW_KEY_LEFT;
+        pub const KEY_RIGHT: Int = c.GLFW_KEY_RIGHT;
+        // pub const KEY_SPACE: Int = c.GLFW_KEY_SPACE;
+        // pub const KEY_ENTER: Int = c.GLFW_KEY_ENTER;
+        // pub const KEY_BACKSPACE: Int = c.GLFW_KEY_BACKSPACE;
+        // pub const KEY_TAB: Int = c.GLFW_KEY_TAB;
+        // pub const KEY_LEFT_SHIFT: Int = c.GLFW_KEY_LEFT_SHIFT;
+        // pub const KEY_RIGHT_SHIFT: Int = c.GLFW_KEY_RIGHT_SHIFT;
+        // pub const KEY_LEFT_CONTROL: Int = c.GLFW_KEY_LEFT_CONTROL;
+        // pub const KEY_RIGHT_CONTROL: Int = c.GLFW_KEY_RIGHT_CONTROL;
+        // pub const KEY_LEFT_ALT: Int = c.GLFW_KEY_LEFT_ALT;
+        // pub const KEY_RIGHT_ALT: Int = c.GLFW_KEY_RIGHT_ALT;
+        // pub const KEY_LEFT_SUPER: Int = c.GLFW_KEY_LEFT_SUPER;
+        // pub const KEY_RIGHT_SUPER: Int = c.GLFW_KEY_RIGHT_SUPER;
 
         /// Straight passthrough ref to glfwGetProcAddress
         pub const getProcAddress = c.glfwGetProcAddress;
         /// non-optional variant of GLFWkeyfun
-        pub const KeyCallbackFn = *const fn (window: ?*c.GLFWwindow, key: Int, scancode: Int, action: Int, mods: Int) callconv(.C) void;
+        pub const KeyCallbackFn = *const fn (window: ?*Window, key: Int, scancode: Int, action: Int, mods: Int) callconv(.C) void;
         // non-optional variant of GLFWerrorfun
         pub const ErrorCallbackFn = *const fn (errorCode: Int, description: cString) callconv(.C) void;
         /// non-optional variant of GLFWglproc
         pub const GlProc = *const fn () callconv(.C) void;
+        /// non-optional variant of glfw scroll callback
+        pub const ScrollCallbackFn = *const fn (window: ?*Window, xOffset: f64, yOffset: f64) callconv(.C) void;
 
         /// glfwInit(), error on failure
         pub fn init() !void {
@@ -117,6 +135,13 @@ pub fn remapped() type {
             return void{};
         }
 
+        /// glfwSetScrollCallback()
+        pub fn setScrollCallback(glfwWindow: *Window, callback: ScrollCallbackFn) void {
+            // The previously set callback, or NULL if no callback was set or an error occurred.
+            _ = c.glfwSetScrollCallback(glfwWindow, callback);
+            return void{};
+        }
+
         /// glfwSwapBuffers()
         pub fn swapBuffers(glfwWindow: *Window) void {
             c.glfwSwapBuffers(glfwWindow);
@@ -141,19 +166,107 @@ pub fn remapped() type {
             return c.glfwWindowShouldClose(glfwWindow) == True;
         }
 
+        /// glfwGetCursorPos()
+        pub fn getCursorPos(glfwWindow: *Window, x: [*c]f64, y: [*c]f64) void {
+            c.glfwGetCursorPos(glfwWindow, x, y);
+            return void{};
+        }
+
+        /// glfwSetCursorPos()
+        pub fn setCursorPos(glfwWindow: *Window, x: f64, y: f64) void {
+            c.glfwSetCursorPos(glfwWindow, x, y);
+            return void{};
+        }
+
+        /// glfwGetMouseWheel()
+        pub fn getMouseWheel(glfwWindow: *Window) f64 {
+            return c.glfwGetMouseWheel(glfwWindow);
+        }
+
+        /// glwfGetWindowSize()
+        pub fn getWindowSize(glfwWindow: *Window, width: [*c]Int, height: [*c]Int) void {
+            c.glfwGetWindowSize(glfwWindow, width, height);
+            return void{};
+        }
+
+        /// glfwGetTime()
+        pub fn getTime() f64 {
+            return c.glfwGetTime();
+        }
+
+        /// glfwGetKey()
+        pub fn getKey(window: *Window, key: Int) Int {
+            return c.glfwGetKey(window, key);
+        }
+
+        pub var callbackState = glfwCallbackState{};
+
+        const glfwCallbackState = struct {
+            errorCb: ?errorCallbackState = null,
+            keyCb: ?keyCallbackState = null,
+            scrollCb: ?scrollCallbackState = null,
+
+            pub const errorCallbackState = struct {
+                code: Int = undefined,
+                description: cString = undefined,
+            };
+
+            pub const keyCallbackState = struct {
+                window: *Window = undefined,
+                key: Int = undefined,
+                scancode: Int = undefined,
+                action: Int = undefined,
+                mods: Int = undefined,
+            };
+
+            pub const scrollCallbackState = struct {
+                window: *Window = undefined,
+                xOffset: f64 = undefined,
+                yOffset: f64 = undefined,
+            };
+        };
+
+        pub fn getScroll() ?glfwCallbackState.scrollCallbackState {
+            if (self.callbackState.scrollCb) |value| {
+                self.callbackState.scrollCb = null;
+                return value;
+            }
+            return null;
+        }
+
         pub const defaultFn = struct {
             /// Default error callback
-            pub fn errorCallback(err: Int, description: [*c]const Char) callconv(.C) void {
-                std.debug.panic("[GLFW] Error '{d}' - {s}\n", .{ err, description });
+            pub fn errorCallback(code: Int, description: [*c]const Char) callconv(.C) void {
+                callbackState.errorCb = glfwCallbackState.errorCallbackState{
+                    .code = code,
+                    .description = description,
+                };
+                @panic("[GLFW] Error\n");
             }
             /// Default key callback
-            pub fn keyCallback(glfwWindow: ?*Window, key: Int, scancode: Int, action: Int, mods: Int) callconv(.C) void {
-                _ = scancode;
-                _ = mods;
+            pub fn keyCallback(window: ?*Window, key: Int, scancode: Int, action: Int, mods: Int) callconv(.C) void {
+                callbackState.keyCb = glfwCallbackState.keyCallbackState{
+                    .window = window.?,
+                    .key = key,
+                    .scancode = scancode,
+                    .action = action,
+                    .mods = mods,
+                };
 
                 if (key == KEY_ESCAPE and action == PRESS) {
-                    c.glfwSetWindowShouldClose(glfwWindow, True);
+                    c.glfwSetWindowShouldClose(window, True);
                 }
+                return void{};
+            }
+            /// Default scroll callback
+            /// Possible errors include GLFW_NOT_INITIALIZED.
+            pub fn scrollCallback(window: ?*Window, xOffset: f64, yOffset: f64) callconv(.C) void {
+                callbackState.scrollCb = glfwCallbackState.scrollCallbackState{
+                    .window = window.?,
+                    .xOffset = xOffset,
+                    .yOffset = yOffset,
+                };
+                return void{};
             }
         };
     };
