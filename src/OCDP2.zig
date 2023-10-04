@@ -370,32 +370,28 @@ pub const OCDP2 = struct {
     pub fn render(self: *OCDP2, windowPtr: *glfw.Window) !void {
         //
 
-        //-----------------------------------------------------------------------------
-        // Create matrices
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+        // MVP matrices
 
-        // Projection matrix
-        const projection: zm.Mat = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
+        var projection: zm.Mat = undefined;
+        var view: zm.Mat = undefined;
+        var model: zm.Mat = undefined;
 
-        // View (camera) matrix
-        const view: zm.Mat = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
-
-        // Model matrix
-        const model: zm.Mat = zm.identity();
-
-        // Multiply matrices
-        const mv = zm.mul(model, view);
-        self.context.mvpData = zm.mul(mv, projection);
-        self.context.mvpLocation = gl.getUniformLocation(self.context.program.?, "MVP");
-
-        //-----------------------------------------------------------------------------
+        // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
         const attributeLocation_color = 1; // "location=1" in vertex shader
         const attributeLocation_vbo = 0; // "location=0" in vertex shader
         // TODO: locations like above to be handles/stored in some similar way as below mvp
+        self.context.mvpLocation = gl.getUniformLocation(self.context.program.?, "MVP");
         const uniformLocation_mvp = self.context.mvpLocation.?;
 
         var windowSizeX: glfw.Int = undefined;
+        var windowSizeXF: f32 = undefined;
+        var windowSizeXFhalf: f32 = undefined;
         var windowSizeY: glfw.Int = undefined;
+        var windowSizeYF: f32 = undefined;
+        var windowSizeYFhalf: f32 = undefined;
+        var windowAspectF: f32 = undefined;
 
         var position: zm.Vec = zm.f32x4(0.0, 0.0, 5.0, 0.0);
         var direction: zm.Vec = zm.f32x4(0.0, 0.0, 0.0, 0.0);
@@ -407,7 +403,7 @@ pub const OCDP2 = struct {
         // vertical angle : 0, look at the horizon
         var verticalAngle: f32 = 0.0;
         // Initial Field of View
-        var initialFoV: f32 = 45.0;
+        var initialFoV: f32 = zm.degToRad(45.0);
         var currentFoV: f32 = initialFoV;
 
         var speed: f32 = 3.0; // 3 units / second
@@ -427,24 +423,31 @@ pub const OCDP2 = struct {
         glfw.setScrollCallback(windowPtr, glfw.defaultFn.scrollCallback);
 
         while (!glfw.windowShouldClose(windowPtr)) {
-            //
+            //-----------------------------------------------------------------------------
+
             currentTime = glfw.getTime();
             deltaTime = @as(f32, @floatCast(currentTime - previousTime));
             previousTime = currentTime;
 
             glfw.getWindowSize(windowPtr, &windowSizeX, &windowSizeY);
+            windowSizeXF = @as(f32, @floatFromInt(windowSizeX));
+            windowSizeXFhalf = windowSizeXF / 2.0;
+            windowSizeYF = @as(f32, @floatFromInt(windowSizeY));
+            windowSizeYFhalf = windowSizeYF / 2.0;
+            windowAspectF = windowSizeXF / windowSizeYF;
 
             glfw.getCursorPos(windowPtr, &posXCurrent, &posYCurrent);
-            glfw.setCursorPos(windowPtr, @as(f64, @floatFromInt(windowSizeX)) / 2, @as(f64, @floatFromInt(windowSizeY)) / 2);
+            glfw.setCursorPos(windowPtr, windowSizeXF / 2.0, windowSizeYF / 2.0);
             posXDelta = posXCurrent - posXPrevious;
             posYDelta = posYCurrent - posYPrevious;
             posXPrevious = posXCurrent;
             posYPrevious = posYCurrent;
-            if (@abs(posXDelta) > 2.0) std.debug.print("pos X delta: {any}\n", .{posXDelta});
-            if (@abs(posYDelta) > 2.0) std.debug.print("pos Y delta: {any}\n", .{posYDelta});
+            // if (@abs(posXDelta) > 2.0) std.debug.print("pos X delta: {any}\n", .{posXDelta});
+            // if (@abs(posYDelta) > 2.0) std.debug.print("pos Y delta: {any}\n", .{posYDelta});
 
-            horizontalAngle += @as(f32, @floatCast(mouseSpeed * deltaTime * ((@as(f32, @floatFromInt(windowSizeX)) / 2) - posXCurrent)));
-            verticalAngle += @as(f32, @floatCast(mouseSpeed * deltaTime * ((@as(f32, @floatFromInt(windowSizeY)) / 2) - posYCurrent)));
+            const deltaTimeMouseSpeed = mouseSpeed * deltaTime;
+            horizontalAngle -= @as(f32, @floatCast(deltaTimeMouseSpeed * (windowSizeXFhalf - posXCurrent)));
+            verticalAngle += @as(f32, @floatCast(deltaTimeMouseSpeed * (windowSizeYFhalf - posYCurrent)));
 
             // Direction : Spherical coordinates to Cartesian coordinates conversion
             const cosVerticalAngle = std.math.cos(verticalAngle);
@@ -453,15 +456,15 @@ pub const OCDP2 = struct {
             direction[2] = cosVerticalAngle * std.math.cos(horizontalAngle);
 
             // Right vector
-            const horizontalAngleLessHalfPi = horizontalAngle - 3.14 / 2.0;
-            right[0] = std.math.sin(horizontalAngleLessHalfPi);
+            const horizontalAngleLess90deg = horizontalAngle - 3.14 / 2.0;
+            right[0] = std.math.sin(horizontalAngleLess90deg);
             right[1] = 0;
-            right[2] = std.math.cos(horizontalAngleLessHalfPi);
+            right[2] = std.math.cos(horizontalAngleLess90deg);
 
             // Up vector : perpendicular to both direction and right
             up = zm.cross3(right, direction);
 
-            // TODO: use @vectors
+            // TODO: use @vectors ??
 
             const deltaTimeSpeed = deltaTime * speed;
             const directionScaled: zm.Vec = zm.f32x4(
@@ -480,31 +483,57 @@ pub const OCDP2 = struct {
             // Move forward
             if (glfw.getKey(windowPtr, glfw.KEY_UP) == glfw.PRESS) {
                 position = zm.add(position, directionScaled);
-                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+                // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Move backward
             if (glfw.getKey(windowPtr, glfw.KEY_DOWN) == glfw.PRESS) {
                 position = zm.sub(position, directionScaled);
-                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+                // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Strafe right
             if (glfw.getKey(windowPtr, glfw.KEY_RIGHT) == glfw.PRESS) {
-                position = zm.add(position, rightScaled);
-                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+                position = zm.sub(position, rightScaled);
+                // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Strafe left
             if (glfw.getKey(windowPtr, glfw.KEY_LEFT) == glfw.PRESS) {
-                position = zm.sub(position, rightScaled);
-                std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
+                position = zm.add(position, rightScaled);
+                // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
 
             // ## TEST ## To see if we can get scroll event data ..
             if (glfw.getScroll()) |scroll| {
-                std.debug.print("scroll x offset: {any}\n", .{scroll.xOffset});
-                std.debug.print("scroll y offset: {any}\n", .{scroll.yOffset});
+                // std.debug.print("scroll x offset: {any}\n", .{scroll.xOffset});
+                // std.debug.print("scroll y offset: {any}\n", .{scroll.yOffset});
 
-                currentFoV = initialFoV - 5 * @as(f32, @floatCast(scroll.yOffset));
+                currentFoV = currentFoV + (@as(f32, @floatCast(scroll.yOffset)) * deltaTimeSpeed);
+                std.debug.print("fov: {any}\n", .{currentFoV});
             }
+
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+            // Projection matrix
+            // projection = zm.perspectiveFovLh(std.math.pi * 0.25, 16.0 / 9.0, 0.1, 100.0);
+
+            // Projection matrix : 45&deg; Field of View, window ratio, display range : 0.1 unit <-> 100 units
+            projection = zm.perspectiveFovLh(currentFoV, windowAspectF, 0.1, 100.0);
+
+            // View (camera) matrix
+            // view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
+
+            // Camera matrix
+            view = zm.lookAtLh(position, // Camera is here
+                zm.add(position, direction), // and looks here : at the same position, plus "direction"
+                up // Head is up (set to 0,-1,0 to look upside-down)
+            );
+
+            // Model matrix
+            model = zm.identity();
+
+            // Multiply matrices
+            self.context.mvpData = zm.mul(zm.mul(model, view), projection);
+
+            // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
             // which shader program to use
             gl.useProgram(self.context.program.?);
@@ -550,6 +579,7 @@ pub const OCDP2 = struct {
             glfw.pollEvents();
 
             try ShaderUtils.assert.noGlError("render");
+            //-----------------------------------------------------------------------------
         }
     }
 };

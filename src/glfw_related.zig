@@ -78,7 +78,7 @@ pub fn main2(alloc: ?*const std.mem.Allocator) !void {
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LESS);
 
-    gl.enable(gl.CULL_FACE);
+    // gl.enable(gl.CULL_FACE);
 
     var ocdp2 = OCDP2.onStack(allocator);
     try ocdp2.init();

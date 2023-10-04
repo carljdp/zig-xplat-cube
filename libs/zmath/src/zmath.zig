@@ -2148,6 +2148,10 @@ pub fn sub(a: anytype, b: anytype) @TypeOf(a, b) {
     }
 }
 
+pub fn degToRad(degrees: f32) f32 {
+    return degrees * math.pi / 180.0;
+}
+
 pub fn mul(a: anytype, b: anytype) mulRetType(@TypeOf(a), @TypeOf(b)) {
     const Ta = @TypeOf(a);
     const Tb = @TypeOf(b);
