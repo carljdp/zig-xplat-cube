@@ -36,7 +36,10 @@ pub fn main2(alloc: ?*const std.mem.Allocator) !void {
 
     glfw.windowHint(glfw.OpenGL.Profile, glfw.OpenGL.Core.Profile);
     glfw.windowHint(glfw.OpenGL.Forward.Compat, glfw.True);
-    glfw.windowHint(glfw.RESIZABLE, glfw.False);
+
+    glfw.windowHint(glfw.RESIZABLE, glfw.True);
+    glfw.windowHint(glfw.DECORATED, glfw.False);
+
     // glfw.windowHint(glfw.OpenGL.Debug.Comtext, glfw.True);
 
     const windowWidth: glfw.Int = 640;
@@ -50,8 +53,9 @@ pub fn main2(alloc: ?*const std.mem.Allocator) !void {
 
     //- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // Set up key (as-in 'key-press') callback
     glfw.setKeyCallback(windowId, glfw.defaultFn.keyCallback);
+    glfw.setScrollCallback(windowId, glfw.defaultFn.scrollCallback);
+    glfw.setWindowSizeCallback(windowId, glfw.defaultFn.windowSizeCallback);
 
     // Make the context current
     glfw.makeContextCurrent(windowId);

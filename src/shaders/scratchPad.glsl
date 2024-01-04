@@ -81,10 +81,10 @@ void main() {
   vec2 mtf = abs(u_mouse.xy/u_resolution * 2.0 - 1.0);
 
   // fragColor = vec4(st.x, st.y, 0.0, 1.0);
-  fragColor = vec4(st.x + mts.x, st.y + mts.y, 0.0, 1.0);
+fragColor=vec4(st.x+mts.x,st.y+mts.y,0.,1.);
   // fragColor = vec4(st.x * sin(u_time), st.y * cos(u_time), 0.0, 1.0);
   // fragColor = vec4(mts.x, mts.y, 0.0, 1.0);
-  // fragColor = vec4(mtf.x, mtf.y, 0.0, 1.0);
+// fragColor=vec4(mtf.x,mtf.y,0.,1.);
 
 	// fragColor = vec4(r2(),sin(u_time * 2.0),sin(u_time * 4.0),1.0);
 }

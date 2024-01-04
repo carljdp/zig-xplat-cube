@@ -1007,9 +1007,9 @@ pub fn remapped() type {
         // pub extern var glad_glWaitSync: PFNGLWAITSYNCPROC;
         // pub extern fn gladLoadGLUserPtr(load: GLADuserptrloadfunc, userptr: ?*anyopaque) c_int;
         // pub extern fn gladLoadGL(load: GLADloadfunc) c_int;
-        // pub const GLAD_GNUC_EXTENSION = @compileError("unable to translate macro: undefined identifier `__extension__`"); // D:\__WIN10\Users\carljdp\Downloads\_SOFTWARE\dev\GLFW\glad2-gl4.1-core\include/glad/gl.h:113:11
-        // pub const GLAD_API_CALL = @compileError("unable to translate C expr: unexpected token 'extern'"); // D:\__WIN10\Users\carljdp\Downloads\_SOFTWARE\dev\GLFW\glad2-gl4.1-core\include/glad/gl.h:142:13
-        // pub const KHRONOS_APICALL = @compileError("unable to translate macro: undefined identifier `dllimport`"); // D:\__WIN10\Users\carljdp\Downloads\_SOFTWARE\dev\GLFW\glad2-gl4.1-core\include/KHR/khrplatform.h:107:12
+        // pub const GLAD_GNUC_EXTENSION = @compileError("unable to translate macro: undefined identifier `__extension__`"); // D:/__DOWNLOADS/_SOFTWARE/dev/GLFW/glad2-gl4.1-core/include/glad/gl.h:113:11
+        // pub const GLAD_API_CALL = @compileError("unable to translate C expr: unexpected token 'extern'"); // D:/__DOWNLOADS/_SOFTWARE/dev/GLFW/glad2-gl4.1-core/include/glad/gl.h:142:13
+        // pub const KHRONOS_APICALL = @compileError("unable to translate macro: undefined identifier `dllimport`"); // D:/__DOWNLOADS/_SOFTWARE/dev/GLFW/glad2-gl4.1-core/include/KHR/khrplatform.h:107:12
         // pub const GLAD_GL_H_ = "";
         // pub const GLAD_GL = "";
         // pub const GLAD_PLATFORM_H_ = "";

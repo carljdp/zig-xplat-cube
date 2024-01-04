@@ -140,11 +140,19 @@ pub const CFS = struct {
 
         // TODO: what if buffer is empty, or contains 1 or more nulls already?
 
-        // if empty or not null terminated
-        if (self.rwBuffer.len == 0 or self.rwBuffer[self.rwBuffer.len - 1] != 0) {
-            // resize buffer +1, to make room for null terminator
-            self.rwBuffer = try self.allocator.realloc(self.rwBuffer, self.rwBuffer.len + 1);
-            self.rwBuffer[self.rwBuffer.len - 1] = 0;
+        // Check if the buffer is non-null and handle appropriately
+        if (self.rwBuffer) |currentBuffer| {
+            // if empty or not null terminated
+            if (currentBuffer.len == 0 or currentBuffer[currentBuffer.len - 1] != 0) {
+                // resize buffer +1, to make room for null terminator
+                self.rwBuffer = try self.allocator.realloc(currentBuffer, currentBuffer.len + 1);
+
+                if (self.rwBuffer) |newBuffer| {
+                    newBuffer[newBuffer.len - 1] = 0; // Assign null terminator to the new last element
+                }
+            }
+        } else {
+            // TODO - what when buffer is null?
         }
 
         // returns a slice to the buffer -1 (excluding the null terminator)
@@ -167,11 +175,19 @@ pub const CFS = struct {
 
         // TODO: what if buffer is empty, or contains 1 or more nulls already?
 
-        // if empty or not null terminated
-        if (self.rwBuffer.len == 0 or self.rwBuffer[self.rwBuffer.len - 1] != 0) {
-            // resize buffer +1, to make room for null terminator
-            self.rwBuffer = try self.allocator.realloc(self.rwBuffer, self.rwBuffer.len + 1);
-            self.rwBuffer[self.rwBuffer.len - 1] = 0;
+        // Check if the buffer is non-null and handle appropriately
+        if (self.rwBuffer) |currentBuffer| {
+            // if empty or not null terminated
+            if (currentBuffer.len == 0 or currentBuffer[currentBuffer.len - 1] != 0) {
+                // resize buffer +1, to make room for null terminator
+                self.rwBuffer = try self.allocator.realloc(currentBuffer, currentBuffer.len + 1);
+
+                if (self.rwBuffer) |newBuffer| {
+                    newBuffer[newBuffer.len - 1] = 0; // Assign null terminator to the new last element
+                }
+            }
+        } else {
+            // TODO - what when buffer is null?
         }
 
         // returns a c-style slice to the entire buffer (without length info)

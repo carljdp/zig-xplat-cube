@@ -140,6 +140,8 @@ pub const ShaderUtils = struct {
         const arraySize = 1;
         const arrayOfStrings = [arraySize][*c]const gl.Char{source.ptr};
         const arrayOfLengths = [arraySize]gl.Int{validLength};
+
+        // currently seg faults somewhere inside here :shrug:
         gl.shaderSource(shaderId, arraySize, &arrayOfStrings, &arrayOfLengths);
 
         // compile shader source
@@ -199,7 +201,7 @@ pub const GlContext = struct {
     colorBuffer: ?gl.Uint = null, // color buffer
     mvpLocation: ?gl.Int = null, // matrix id ?
     mvpData: ?zm.Mat = null, // model-view-projection matrix
-    shape: BasicShape = testShape,
+    shape: BasicShape = testShape, // currently only cube or triangle (vertex, color, indices)
 };
 
 pub const OCDP2 = struct {
@@ -257,14 +259,30 @@ pub const OCDP2 = struct {
         // ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` ` `
 
         // Cleanup
-        gl.deleteBuffers(1, &self.context.vbo.?);
-        gl.deleteBuffers(1, &self.context.colorBuffer.?);
-        gl.deleteProgram(self.context.program.?);
-        gl.deleteVertexArrays(1, &self.context.vao.?);
+        if (self.context.vbo) |vbo| {
+            std.debug.print("attempting to `deleteBuffers` ..\n", .{});
+            gl.deleteBuffers(1, &vbo);
+            ShaderUtils.assert.noGlError("cleanup") catch |err| std.debug.print("Error [1] during cleanup: {!}\n", .{err});
+        }
 
-        ShaderUtils.assert.noGlError("cleanup") catch |err| {
-            std.debug.print("Error during cleanup:\n{!}", .{err});
-        };
+        if (self.context.colorBuffer) |colorBuffer| {
+            std.debug.print("attempting to `deleteBuffers` ..\n", .{});
+            gl.deleteBuffers(1, &colorBuffer);
+            ShaderUtils.assert.noGlError("cleanup") catch |err| std.debug.print("Error [2] during cleanup: {!}\n", .{err});
+        }
+
+        if (self.context.program) |program| {
+            std.debug.print("attempting to `deleteProgram` ..\n", .{});
+            gl.deleteProgram(program);
+            ShaderUtils.assert.noGlError("cleanup") catch |err| std.debug.print("Error [3] during cleanup: {!}\n", .{err});
+        }
+
+        if (self.context.vao) |vao| {
+            std.debug.print("attempting to `deleteVertexArrays` ..\n", .{});
+            gl.deleteVertexArrays(1, &vao);
+            ShaderUtils.assert.noGlError("cleanup") catch |err| std.debug.print("Error [4] during cleanup: {!}\n", .{err});
+        }
+
 
         if (!self.initialized) return;
 
@@ -291,7 +309,7 @@ pub const OCDP2 = struct {
 
         self.context.vertexShader = blk: {
             try cfs.readFileToInternalBuffer("./src/shaders/shader.vert", 1024 * 1024);
-            const vertexShaderSource = try cfs.getBufferAsIs();
+            const vertexShaderSource = try cfs.getBufferNullTerminatedZ();
             const vertexShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Vertex, vertexShaderSource);
             try ShaderUtils.assert.shaderCompiled(vertexShaderId);
             break :blk vertexShaderId;
@@ -302,7 +320,7 @@ pub const OCDP2 = struct {
 
         self.context.fragmentShader = blk: {
             try cfs.readFileToInternalBuffer("./src/shaders/shader.frag", 1024 * 1024);
-            const fragmentShaderSource = try cfs.getBufferAsIs();
+            const fragmentShaderSource = try cfs.getBufferNullTerminatedZ();
             const fragmentShaderId = try ShaderUtils.compile(MyGl.ShaderTypeTag.Fragment, fragmentShaderSource);
             try ShaderUtils.assert.shaderCompiled(fragmentShaderId);
             break :blk fragmentShaderId;
@@ -407,7 +425,7 @@ pub const OCDP2 = struct {
         var currentFoV: f32 = initialFoV;
 
         var speed: f32 = 3.0; // 3 units / second
-        var mouseSpeed: f32 = 0.005;
+        var mouseSpeed: f32 = 0.05;
 
         var currentTime: f64 = glfw.getTime();
         var previousTime: f64 = currentTime;
@@ -420,7 +438,12 @@ pub const OCDP2 = struct {
         var posXDelta: f64 = posXCurrent - posXPrevious;
         var posYDelta: f64 = posYCurrent - posYPrevious;
 
-        glfw.setScrollCallback(windowPtr, glfw.defaultFn.scrollCallback);
+        var modeIsOrbit: bool = true;
+        var orbitRadius: f32 = 5.0;
+        var orbitHeight: f32 = 0.0;
+        var orbitTime: f32 = 0.0;
+
+        var windowFocused: bool = undefined;
 
         while (!glfw.windowShouldClose(windowPtr)) {
             //-----------------------------------------------------------------------------
@@ -436,8 +459,17 @@ pub const OCDP2 = struct {
             windowSizeYFhalf = windowSizeYF / 2.0;
             windowAspectF = windowSizeXF / windowSizeYF;
 
+            if (glfw.getWindowFocusStateIfChanged()) |state| {
+                std.debug.print("window focus state stanged from {any} to {any}\n", .{ windowFocused, state.focused });
+                windowFocused = state.focused;
+            }
+
+            if (glfw.getCursorEnterStateIfChanged()) |state| {
+                std.debug.print("cursor enter state stanged from {any} to {any}\n", .{ windowFocused, state.entered });
+            }
+
             glfw.getCursorPos(windowPtr, &posXCurrent, &posYCurrent);
-            glfw.setCursorPos(windowPtr, windowSizeXF / 2.0, windowSizeYF / 2.0);
+            // glfw.setCursorPos(windowPtr, windowSizeXF / 2.0, windowSizeYF / 2.0);
             posXDelta = posXCurrent - posXPrevious;
             posYDelta = posYCurrent - posYPrevious;
             posXPrevious = posXCurrent;
@@ -481,33 +513,62 @@ pub const OCDP2 = struct {
             );
 
             // Move forward
-            if (glfw.getKey(windowPtr, glfw.KEY_UP) == glfw.PRESS) {
+            if ((glfw.getKey(windowPtr, glfw.KEY_UP) == glfw.PRESS) or (glfw.getKey(windowPtr, glfw.KEY_W) == glfw.PRESS)) {
                 position = zm.add(position, directionScaled);
                 // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Move backward
-            if (glfw.getKey(windowPtr, glfw.KEY_DOWN) == glfw.PRESS) {
+            if ((glfw.getKey(windowPtr, glfw.KEY_DOWN) == glfw.PRESS) or (glfw.getKey(windowPtr, glfw.KEY_S) == glfw.PRESS)) {
                 position = zm.sub(position, directionScaled);
                 // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Strafe right
-            if (glfw.getKey(windowPtr, glfw.KEY_RIGHT) == glfw.PRESS) {
+            if ((glfw.getKey(windowPtr, glfw.KEY_RIGHT) == glfw.PRESS) or (glfw.getKey(windowPtr, glfw.KEY_D) == glfw.PRESS)) {
                 position = zm.sub(position, rightScaled);
                 // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
             // Strafe left
-            if (glfw.getKey(windowPtr, glfw.KEY_LEFT) == glfw.PRESS) {
+            if ((glfw.getKey(windowPtr, glfw.KEY_LEFT) == glfw.PRESS) or (glfw.getKey(windowPtr, glfw.KEY_A) == glfw.PRESS)) {
                 position = zm.add(position, rightScaled);
                 // std.debug.print("position: {any}, {any}, {any}\n", .{ position[0], position[1], position[2] });
             }
+            // Switch to orbit mode
+            if (glfw.getKey(windowPtr, glfw.KEY_TAB) == glfw.PRESS) {
+                modeIsOrbit = !modeIsOrbit;
+                std.debug.print("control mode: {s}\n", .{if (modeIsOrbit) "orbit" else "fps"});
+            }
+            // Reset position
+            if (glfw.getKey(windowPtr, glfw.KEY_R) == glfw.PRESS) {
+                position = zm.f32x4(0.0, 0.0, 5.0, 0.0);
+                direction = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+                right = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+                up = zm.f32x4(0.0, 0.0, 0.0, 0.0);
+                horizontalAngle = 3.14;
+                verticalAngle = 0.0;
+                currentFoV = initialFoV;
+            }
 
             // ## TEST ## To see if we can get scroll event data ..
-            if (glfw.getScroll()) |scroll| {
+            if (glfw.getScrollStateIfChanged()) |scroll| {
                 // std.debug.print("scroll x offset: {any}\n", .{scroll.xOffset});
                 // std.debug.print("scroll y offset: {any}\n", .{scroll.yOffset});
 
-                currentFoV = currentFoV + (@as(f32, @floatCast(scroll.yOffset)) * deltaTimeSpeed);
-                std.debug.print("fov: {any}\n", .{currentFoV});
+                currentFoV = zm.clamp(
+                    currentFoV + (@as(f32, @floatCast(scroll.yOffset)) * deltaTimeSpeed),
+                    comptime zm.degToRad(0.2), // 0.1deg breaks math library
+                    comptime zm.degToRad(180.0),
+                );
+                // std.debug.print("fov: {any}\n", .{currentFoV});
+            }
+
+            if (modeIsOrbit) {
+                orbitTime += deltaTime;
+                position = zm.f32x4(
+                    orbitRadius * std.math.cos(orbitTime),
+                    orbitHeight,
+                    orbitRadius * std.math.sin(orbitTime),
+                    0.0,
+                );
             }
 
             // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -522,8 +583,9 @@ pub const OCDP2 = struct {
             // view = zm.lookAtLh(zm.f32x4(4.0, 3.0, 3.0, 1.0), zm.f32x4(0.0, 0.0, 0.0, 1.0), zm.f32x4(0.0, 1.0, 0.0, 0.0));
 
             // Camera matrix
+            const lookAtTarget = if (modeIsOrbit) zm.f32x4(0.0, 0.0, 0.0, 1.0) else zm.add(position, direction);
             view = zm.lookAtLh(position, // Camera is here
-                zm.add(position, direction), // and looks here : at the same position, plus "direction"
+                lookAtTarget, // and looks here : at the same position, plus "direction"
                 up // Head is up (set to 0,-1,0 to look upside-down)
             );
 

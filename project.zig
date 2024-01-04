@@ -55,8 +55,8 @@ fn _addExternalDependenciesTo(compileTarget: *const *@import("std").Build.Step.C
     target.linkSystemLibrary("OpenGL32");
 
     // Glad2, for loading OpenGL functions
-    target.addIncludePath(.{ .cwd_relative = "D:/__DOWNLOADS/_SOFTWARE/dev/GLFW/glad2-gl4.1-core/include" });
-    target.addCSourceFile(.{ .file = .{ .cwd_relative = "D:/__DOWNLOADS/_SOFTWARE/dev/GLFW/glad2-gl4.1-core/src/gl.c" }, .flags = &[_][]const u8{} });
+    target.addIncludePath(.{ .cwd_relative = "D:\\__DOWNLOADS\\_SOFTWARE\\dev\\GLFW\\glad2-gl4.1-core\\include" });
+    target.addCSourceFile(.{ .file = .{ .cwd_relative = "D:\\__DOWNLOADS\\_SOFTWARE\\dev\\GLFW\\glad2-gl4.1-core\\src\\gl.c" }, .flags = &[_][]const u8{} });
     // unit_tests.linkSystemLibrary("gl"); // why is this not needed, but glfw3 is?
 
     // GLFW3, for creating a window and OpenGL context

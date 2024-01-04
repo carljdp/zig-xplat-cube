@@ -389,6 +389,10 @@ test "Manual String Literal" {
     // const str1cv = &sentinelTerminatedFixedSizeArray(0, u8, [1][*c]u8{"hello"});
     const str1cc = &sentinelTerminatedFixedSizeArray(0, u8, [1][*c]const u8{"hello"});
 
+
+    // TODO - i can't remember exactly what we were trying to do / debug here (below)
+
+
     std.debug.print("Expecting: '*const [5:0]u8'\n", .{});
     std.debug.print("plain:  {any}\n", .{@TypeOf(str1)});
     std.debug.print("manual: {any}\n", .{@TypeOf(str2a)});
